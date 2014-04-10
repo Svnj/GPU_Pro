@@ -86,16 +86,24 @@ void keyboard(unsigned char key, int x, int y)
 {
 	// Hinweis: Die Texture Environment Modes können mit der Funktion glTexEnvi gesetzt werden.
 	// 'Target' ist dabei immer GL_TEXTURE_ENV und der Parametername ist GL_TEXTURE_ENV_MODE.
-	// TODO: Bei Taste 1 den Parameter GL_MODULATE als Texture Environment Mode setzen.
-	// TODO: Bei Taste 2 den Parameter GL_REPLACE als Texture Environment Mode setzen.
+	// Bei Taste 1 den Parameter GL_MODULATE als Texture Environment Mode setzen.
+	// Bei Taste 2 den Parameter GL_REPLACE als Texture Environment Mode setzen.
 
-	// TODO: Bei Taste 3 Texturekoordinaten mit Hilfe des Matrix-Stacks um den Faktor 2 skalieren.
+	// Bei Taste 3 Texturekoordinaten mit Hilfe des Matrix-Stacks um den Faktor 2 skalieren.
 	// Hinweis: die Funktion glScalef, glTranslatef etc. beziehen sich immer auf den gerade aktivierten Matrix-Mode.
 		// Wechseln Sie zunächst in der GL_TEXTURE Matrix Mode.
 		// Setzen Sie die Texturmatrix zurück und wenden Sie anschließend die Skalierung an.
 		// Wechseln Sie zurück in die GL_MODELVIEW Matrix Mode.
 
-	// TODO: Bei Taste 4 die Texture Matrix auf die Einheitsmatrix zurücksetzen.
+	// Bei Taste 4 die Texture Matrix auf die Einheitsmatrix zurücksetzen.
+	switch(key) 
+  	{
+	case '1': glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE); break;
+    case '2': glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE); break; 
+    case '3': glMatrixMode(GL_TEXTURE); glScalef(2.0f,2.0f,2.0f); glMatrixMode(GL_MODELVIEW); break;
+	case '4': glMatrixMode(GL_TEXTURE); glLoadIdentity(); glMatrixMode(GL_MODELVIEW);break;
+    default:  break; 
+	}
 }
 
 void mouseMotion(int x, int y)
@@ -176,8 +184,10 @@ int main(int argc, char **argv)
 
 	// Laden der Textur
 	texture = loadBMP("rockwall_color.bmp");
-	// TODO: Binden der Textur			
-	// TODO: 2D-Texturierung aktivieren
+	// Binden der Textur	
+	glBindTexture(GL_TEXTURE_2D, texture);		
+	// 2D-Texturierung aktivieren
+	glEnable( GL_TEXTURE_2D );
 
 	glutMainLoop();
 	return 0;

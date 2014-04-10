@@ -46,16 +46,21 @@ GLuint loadBMP(const char *fname)
 	// Diese Variable speichert den Texturnamen.
 	GLuint handle = 0;
 
-	// TODO: Erzeugen eines Texturnames (handle).
+	// Erzeugen eines Texturnames (handle).
+	glGenTextures(1,&handle);
 
-	// TODO: Binden der Textur. (Hinweis: Das target heißt GL_TEXTURE_2D)
+	// Binden der Textur. (Hinweis: Das target heißt GL_TEXTURE_2D)
+	glBindTexture(GL_TEXTURE_2D, handle);	
 
-	// TODO: Füllen der Textur. Dabei sollen automatisch mip map levels erzeugt werden. (Hinweis: Nutzen sie dafür gluBuild2DMipmaps)
+	// Füllen der Textur. Dabei sollen automatisch mip map levels erzeugt werden. (Hinweis: Nutzen sie dafür gluBuild2DMipmaps)
 	// Es handelt sich hierbei um eine Textur mit 3 Komponenten, des Formats GL_RGB und des Typs GL_UNSIGNED_BYTE. 
 	// width, height und data sind bereits oben geladen worden.
+	gluBuild2DMipmaps(GL_TEXTURE_2D,GL_RGB,width,height,GL_RGB,GL_UNSIGNED_BYTE,data);
 
-	// TODO: Setzen des TexParameter "GL_TEXTURE_MIN_FILTER" auf den Wert GL_LINEAR_MIPMAP_LINEAR.
-	// TODO: Setzen des TexParameter "GL_TEXTURE_MAX_FILTER" auf den Wert GL_LINEAR_MIPMAP_LINEAR.	
+	// Setzen des TexParameter "GL_TEXTURE_MIN_FILTER" auf den Wert GL_LINEAR_MIPMAP_LINEAR.
+	// Setzen des TexParameter "GL_TEXTURE_MAG_FILTER" auf den Wert GL_LINEAR.	
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);	
 
 	// Die Textur muss nicht mehr gebunden sein.
 	glBindTexture(GL_TEXTURE_2D, 0);
