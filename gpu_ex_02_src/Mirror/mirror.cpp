@@ -19,8 +19,11 @@ float distance = 2.5f;
 float oldX, oldY;
 int motionState;
 
+float rotX = 0;
+float rotZ = 0;
+
 GLfloat lightPos[4] = {3, 3, 3, 1};
-GLfloat mirrorColor[4] = {1.0f, 0.2f, 0.2f, 0.8f};
+GLfloat mirrorColor[4] = {1.0f, 0.2f, 0.2f, 0.6f};
 GLfloat teapotColor[4] = {0.8f, 0.8f, 0.2f, 1.0f};
 
 
@@ -37,17 +40,23 @@ void drawScene()
 // Spiegel zeichen: Ein Viereck
 void drawMirror()
 {
-	glBegin(GL_QUADS);
-	glVertex3f(1,0,1);
-	glVertex3f(1,0,-1);
-	glVertex3f(-1,0,-1);
-	glVertex3f(-1,0,1);
-	glEnd();
+	glPushMatrix();
+		// rotate the mirror according to user input
+		glRotatef(rotX, 1.0f, 0.0f, 0.0f);
+		glRotatef(rotZ, 0.0f, 0.0f, 1.0f);
+
+		glBegin(GL_QUADS);
+		glVertex3f(1,0,1);
+		glVertex3f(1,0,-1);
+		glVertex3f(-1,0,-1);
+		glVertex3f(-1,0,1);
+		glEnd();
+	glPopMatrix();
 }
 
 void display(void)	
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	glLoadIdentity();
@@ -64,23 +73,69 @@ void display(void)
 
 	// *** Spiegel zeichnen, so dass Spiegelobjekt im Stencil Buffer eingetragen wird
 	// *** Framebuffer dabei auf Read-Only setzen, Depth Buffer deaktivieren, Stencil Test aktivieren
+	glDisable(GL_DEPTH_TEST);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_ALWAYS, 1, 1);
+	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+	// draw mask
+	drawMirror();
 
 	// *** Gespiegelte Szene zeichnen, Stencil Buffer so einstellen, dass nur bei
 	// *** einem Eintrag 1 im Stencil Buffer das entsprechende Pixel im Framebuffer 
 	// *** gezeichnet wird, der Inhalt vom Stencil Buffer soll unveraendert bleiben 
 	// *** Depth Buffer wieder anmachen, Framebuffer Maskierung deaktivieren
 	// *** Was macht man mit der Lichtquelle ?
+	glStencilFunc(GL_EQUAL, 1, 1);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glEnable(GL_DEPTH_TEST);
 
-	// *** Stencil Test deaktivieren, Spiegelung der Szene rueckgaengig machen
+	glPushMatrix();
+		// mirror along normal
+		glRotatef(rotX, 1.0f, 0.0f, 0.0f);
+		glRotatef(rotZ, 0.0f, 0.0f, 1.0f);
+		glScalef(1.0f, -1.0f, 1.0f);
+
+		// position light again (flip it as well)
+		glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+
+		drawScene();
+	glPopMatrix(); // *** Spiegelung der Szene rueckgaengig machen
+
+	// *** Stencil Test deaktivieren
 	// *** Spiegelobjekt mit diffuser Farbe mirrorColor zeichen
 	// *** Blending aktivieren und ueber Alpha-Kanal mit Spiegelbild zusammenrechnen
+	glDisable(GL_STENCIL_TEST);
 
-	drawMirror();
+	glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, mirrorColor);
+		drawMirror();
 	glDisable(GL_BLEND);
 
+	// problem: better don't look underneath the mirror... (should fix that)
+	// maybe do the extra-task, too
+
 	glutSwapBuffers();	
+}
+
+void keyboard(unsigned char key, int x, int y)
+{
+	// rotate mirror along x-axis
+	if(key == 'a')
+		rotX = (rotX >= 360)? 0 : rotX+1.0f;
+	else if(key == 'd')
+		rotX = (rotX < 0)? 359 : rotX-1.0f;
+	// rotate mirror along z-axis
+	else if(key == 'w')
+		rotZ = (rotZ >= 360)? 0 : rotZ+1.0f;
+	else if(key == 's')
+		rotZ = (rotZ < 0)? 359 : rotZ-1.0f;
+
+	glutPostRedisplay();
 }
 
 void mouseMotion(int x, int y)
@@ -146,6 +201,7 @@ int main(int argc, char **argv)
 	glutDisplayFunc(display);
 	glutMotionFunc(mouseMotion);
 	glutMouseFunc(mouse);
+	glutKeyboardFunc(keyboard);
 
 
 	glEnable(GL_LIGHTING);
