@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <cstdio>
 
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -67,6 +68,12 @@ Vector startP3(0.0f, 1.0f, 0.0f);
 
 int globalIndex = 0;
 int maxLevel = 8;
+
+unsigned int positionsVBO;
+unsigned int normalsVBO;
+unsigned int indicesVBO;
+
+unsigned int VAO;
 
 void generateTriangle(Vector p0, Vector p1, Vector p2)
 {
@@ -142,11 +149,30 @@ void generateGeometryVertexBuffer()
 	// - Generieren eines Buffer Handles
 	// - Binden des Buffers (Target = GL_ARRAY_BUFFER)
 	// - Buffer Daten in den VRAM kopieren (Usage = GL_STATIC_DRAW)
-	// - Buffer nicht mehr binden (stattdessen eine 0 binden).	
-	
+    // - Buffer nicht mehr binden (stattdessen eine 0 binden).
+    unsigned int positionsVBOSizeInByte = sizeof(positions[0])*positions.size();
+	glGenBuffers(1,&positionsVBO);	
+	glBindBuffer(GL_ARRAY_BUFFER,positionsVBO);
+    glBufferData(GL_ARRAY_BUFFER,positionsVBOSizeInByte,&positions[0],GL_STATIC_DRAW);
+	glVertexPointer(3,GL_FLOAT,0,NULL);
+	glBindBuffer(GL_ARRAY_BUFFER,0);
+
 	// TODO: Erzeugen eines Vertex Buffer Objects für die Normalen.
+    unsigned int normalsVBOSizeInByte = sizeof(normals[0])*normals.size();
+	glGenBuffers(1,&normalsVBO);	
+	glBindBuffer(GL_ARRAY_BUFFER,normalsVBO);
+    glBufferData(GL_ARRAY_BUFFER,normalsVBOSizeInByte,&normals[0],GL_STATIC_DRAW);
+	glNormalPointer(GL_FLOAT,0,NULL);
+	glBindBuffer(GL_ARRAY_BUFFER,0);
 	
 	// TODO: Erzeugen eines Indexbuffers. Dies funktioniert genauso, wie die Erzeugung eines VBOs (Hinweis: Target = GL_ELEMENT_ARRAY_BUFFER).
+    unsigned int indicesVBOSizeInByte = sizeof(indices[0])*indices.size();
+	glGenBuffers(1,&indicesVBO);	
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,indicesVBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,indicesVBOSizeInByte,&indices[0],GL_STATIC_DRAW);
+	glIndexPointer(GL_UNSIGNED_INT,0,NULL);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);	
+	
 	
 	// TODO: Erzeugen eines Vertex Array Objects (VAOs).
 	// VAOs werden genutzt um der GPU mitzuteilen, von welchen VBOs die Daten für das Rendering genommen werden sollen.
@@ -163,21 +189,49 @@ void generateGeometryVertexBuffer()
 		// wieder glVertexAttribPointer nutzen..
 		// Aufräumen: Den Wert '0' als Vertex Buffer Object binden. (kein VBO mehr aktiv)
 		// Zuletzt muss mitgeteilt werden, welche Vertex-Attribut Indices genutzt werden sollen. Dies geschieht mit glEnableVertexAttribArray.
-	// Aufräumen: Unbinden des Vertex Array Objects (eine 0 binden).	
+	// Aufräumen: Unbinden des Vertex Array Objects (eine 0 binden).
+
+	glGenVertexArrays(1,&VAO);
+	glBindVertexArray(VAO);
+	
+	glBindBuffer(GL_ARRAY_BUFFER,positionsVBO);
+    glVertexAttribPointer(0,3,GL_FLOAT,false,0,NULL);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER,0);
+
+	glBindBuffer(GL_ARRAY_BUFFER,normalsVBO);
+    glVertexAttribPointer(2,3,GL_FLOAT,false,0,NULL);
+	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ARRAY_BUFFER,0);
+
+	/*
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,indicesVBO);
+	glVertexAttribPointer(2,1,GL_UNSIGNED_INT,false,0,NULL);
+	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+	*/
+
+	glBindVertexArray(0);
 }
 
 
 void drawGeometryVertexBuffer()
 {
 	// TODO: Binden des VAOs. (Die GPU weiß nun, wo sie die Geometriedaten herzuholen hat.)
+	glBindVertexArray(VAO);
 	// TODO: Index-Buffer binden.
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,indicesVBO);
 	
 	// TODO: mit glDrawElements die Triangles rendern. 
 	// Hinweis: Der Type-Parameter definiert den im Index Buffer verwendeten Datentyp.
 	//   Der letzte Parameter dieses DrawCalls ist NULL, da der Index-Buffer von Beginn an gelesen werden soll.
 	unsigned int numTriangles = positions.size();
+
+	glDrawElements(GL_TRIANGLES,numTriangles,GL_UNSIGNED_INT,NULL);
 	
 	// TODO: Unbinden von VAO und Index-Buffer	
+	glBindVertexArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
 }
 
 // calc the view position and direction from theta/phi coordinates
@@ -344,10 +398,10 @@ int main(int argc, char** argv)
 
 	// subdivideTriangle(startTriangle, 4.0, 0);
 	generateTetraeders(5.0*startP0, 5.0*startP1, 5.0*startP2, 5.0*startP3, 0);
-
+	
 	// we draw the geometry as a vertex buffer
 	generateGeometryVertexBuffer();
-
+	
 	initGL();
 	// Enter main loop
 	glutMainLoop();
