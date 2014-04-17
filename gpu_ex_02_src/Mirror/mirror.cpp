@@ -1,7 +1,7 @@
 // *** Spiegelungen mit Stencil Buffer simulieren
 
 #include <math.h>
-#include <GL/freeglut.h>	
+#include <GL/freeglut.h>
 
 GLfloat viewPos[3] = {0.0f, 2.0f, 2.0f};
 
@@ -25,13 +25,16 @@ float rotZ = 0;
 GLfloat lightPos[4] = {3, 3, 3, 1};
 GLfloat mirrorColor[4] = {1.0f, 0.2f, 0.2f, 0.6f};
 GLfloat teapotColor[4] = {0.8f, 0.8f, 0.2f, 1.0f};
+GLfloat clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 const int textureWidth = 256;
 const int textureHeight = 256;
 
+GLuint texHandle;
+
 float compDistance(int xa,int ya,int xb,int yb)
 {
-	return sqrt(pow(xa-xb,2)+pow(ya-yb,2));
+	return sqrt(pow((float)xa-xb,2)+pow((float)ya-yb,2));
 }
 
 
@@ -46,11 +49,11 @@ unsigned char findColor(int xa,int ya,int xb,int yb)
         return 0;
 }
 
-void generateTexture()
+GLuint generateTexture()
 {
 	int textureXCenter = (int)(textureWidth/2);
 	int textureYCenter = (int)(textureHeight/2); 
-	
+
     GLubyte texture[textureWidth*textureHeight*4];
 
 	for(int i = 0;i < textureHeight;++i)
@@ -59,17 +62,24 @@ void generateTexture()
 		{
 			int pos = (i*textureWidth+j)*4;
 			texture[pos] = 255;
-            texture[pos+1] = 0;
-            texture[pos+2] = 0;
+            texture[pos+1] = 255;
+            texture[pos+2] = 255;
             texture[pos+3] = findColor(j,i,textureXCenter,textureYCenter);
 		}
 	}
-	
-	unsigned int textureHandle;
+
+	GLuint textureHandle = 0;
 	glGenTextures(1,&textureHandle);
 	glBindTexture(GL_TEXTURE_2D,textureHandle);
-	
+
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &texture[0]);
+	
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);	
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	return textureHandle;
 }
 
 // Szene zeichnen: Eine Teekanne
@@ -101,7 +111,7 @@ void drawMirror()
 
 void drawTexturedMirror()
 {
-    //glDisable(GL_LIGHTING);
+	glBindTexture(GL_TEXTURE_2D, texHandle);
 	glPushMatrix();
 		// rotate the mirror according to user input
 		glRotatef(rotX, 1.0f, 0.0f, 0.0f);
@@ -125,12 +135,13 @@ void drawTexturedMirror()
 		glVertex3f(-1,0,1);
 		glEnd();
 	glPopMatrix();
-    //glEnable(GL_LIGHTING);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void display(void)	
 {
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClearColor(clearColor[0], clearColor[1], 
+                 clearColor[2], clearColor[3]);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	glLoadIdentity();
@@ -139,11 +150,6 @@ void display(void)
 	float z = distance * sin(theta) * sin(phi);
 
 	gluLookAt(x, y, z, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-
-    // Szene normal zeichnen (ohne Spiegelobjekt)
-
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
-    drawScene();
 
     // *** Spiegel zeichnen, so dass Spiegelobjekt im Stencil Buffer eingetragen wird
     // *** Framebuffer dabei auf Read-Only setzen, Depth Buffer deaktivieren, Stencil Test aktivieren
@@ -184,15 +190,43 @@ void display(void)
     // *** Blending aktivieren und ueber Alpha-Kanal mit Spiegelbild zusammenrechnen
     glDisable(GL_STENCIL_TEST);
 	
-    glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+
+    /*
+     * The problem with this is the way that blending works. Once something has been placed into the
+     * frame buffer it can only be overwritten. That means that the full reflection is in there
+     * and can't be removed to let the background show through. All we can do is place new pixels
+     * on top. Maybe there is a way to do this properly. (Offscreen-rendering the scene without reflection into a texture,
+     * rendering the reflection only on a white background into a texture as well,
+     * doing some post-processing to separate the reflection from the background,
+     * combining them and rendering them flat onto the screen?) 
+     * There definitely is a way to do this using shaders,
+     * but that didn't seem to be the objective of the task.
+     * In any case, I don't see a way to obtain the desired effect while drawing reflection and mirror one 
+     * after the other and without using shaders.
+     * The current solution at least looks correct (unless we change the clear color...).
+     */
+
+    glEnable(GL_BLEND);	
+    glDisable(GL_DEPTH_TEST); // no depth test, otherwise the mirror will only be drawn once
+		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, clearColor);
+		glBlendFunc(GL_ONE_MINUS_SRC_ALPHA,GL_SRC_ALPHA);	// fades reflection (but leaves a white border...)
+
+        glDisable(GL_LIGHTING); // no lighting, else the white border becomes visible <.<'
+		drawTexturedMirror();
+        glEnable(GL_LIGHTING);
+        
         glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mirrorColor);
-        drawMirror();
-        drawTexturedMirror();
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // fades mirror 
+
+        drawTexturedMirror(); 
+    glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
-	// problem: better don't look underneath the mirror... (should fix that)
-	// maybe do the extra-task, too
+    // Szene normal zeichnen (ohne Spiegelobjekt)
+    // draw last because we had to disable the depth test while drawing the ground
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+    drawScene();
 
 	glutSwapBuffers();	
 }
@@ -217,7 +251,7 @@ void mouseMotion(int x, int y)
 {
 	float deltaX = x - oldX;
 	float deltaY = y - oldY;
-	
+
 	if (motionState == ROTATE) {
 		theta -= 0.01f * deltaY;
 
@@ -283,7 +317,7 @@ int main(int argc, char **argv)
 	glEnable(GL_LIGHT0);
 
 	glEnable(GL_DEPTH_TEST);
-	
+
 	glEnable(GL_TEXTURE_2D);
 
 	glViewport(0,0,width,height);					
@@ -295,9 +329,10 @@ int main(int argc, char **argv)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	generateTexture();		
-	glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE);	
-	
+	texHandle = generateTexture();		
+	//glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE);	
+	glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+
 	glutMainLoop();
 	return 0;
 }
