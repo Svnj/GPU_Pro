@@ -26,6 +26,51 @@ GLfloat lightPos[4] = {3, 3, 3, 1};
 GLfloat mirrorColor[4] = {1.0f, 0.2f, 0.2f, 0.6f};
 GLfloat teapotColor[4] = {0.8f, 0.8f, 0.2f, 1.0f};
 
+const int textureWidth = 256;
+const int textureHeight = 256;
+
+float compDistance(int xa,int ya,int xb,int yb)
+{
+	return sqrt(pow(xa-xb,2)+pow(ya-yb,2));
+}
+
+
+unsigned char findColor(int xa,int ya,int xb,int yb)
+{
+	float distance = compDistance(xa,ya,xb,yb);
+	float maxDist = (float)textureWidth/2;
+	float factor = distance/maxDist;
+    if(factor <= 1.0f)
+        return 255*(1-factor);
+    else
+        return 0;
+}
+
+void generateTexture()
+{
+	int textureXCenter = (int)(textureWidth/2);
+	int textureYCenter = (int)(textureHeight/2); 
+	
+    GLubyte texture[textureWidth*textureHeight*4];
+
+	for(int i = 0;i < textureHeight;++i)
+	{
+		for(int j = 0;j<textureWidth;++j)
+		{
+			int pos = (i*textureWidth+j)*4;
+			texture[pos] = 255;
+            texture[pos+1] = 0;
+            texture[pos+2] = 0;
+            texture[pos+3] = findColor(j,i,textureXCenter,textureYCenter);
+		}
+	}
+	
+	unsigned int textureHandle;
+	glGenTextures(1,&textureHandle);
+	glBindTexture(GL_TEXTURE_2D,textureHandle);
+	
+	glTexImage2D(GL_TEXTURE_2D, 0, 4, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &texture[0]);
+}
 
 // Szene zeichnen: Eine Teekanne
 void drawScene()
@@ -54,6 +99,35 @@ void drawMirror()
 	glPopMatrix();
 }
 
+void drawTexturedMirror()
+{
+    //glDisable(GL_LIGHTING);
+	glPushMatrix();
+		// rotate the mirror according to user input
+		glRotatef(rotX, 1.0f, 0.0f, 0.0f);
+		glRotatef(rotZ, 0.0f, 0.0f, 1.0f);
+
+		glBegin(GL_QUADS);
+        glNormal3f(0,1,0);
+		glTexCoord2f(1,1);
+		glVertex3f(1,0,1);
+
+        glNormal3f(0,1,0);
+		glTexCoord2f(0,1);		
+		glVertex3f(1,0,-1);
+
+        glNormal3f(0,1,0);
+		glTexCoord2f(0,0);
+		glVertex3f(-1,0,-1);
+
+        glNormal3f(0,1,0);
+		glTexCoord2f(1,0);
+		glVertex3f(-1,0,1);
+		glEnd();
+	glPopMatrix();
+    //glEnable(GL_LIGHTING);
+}
+
 void display(void)	
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -66,55 +140,56 @@ void display(void)
 
 	gluLookAt(x, y, z, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
-	// Szene normal zeichnen (ohne Spiegelobjekt)
+    // Szene normal zeichnen (ohne Spiegelobjekt)
 
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
-	drawScene();
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+    drawScene();
 
-	// *** Spiegel zeichnen, so dass Spiegelobjekt im Stencil Buffer eingetragen wird
-	// *** Framebuffer dabei auf Read-Only setzen, Depth Buffer deaktivieren, Stencil Test aktivieren
-	glDisable(GL_DEPTH_TEST);
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    // *** Spiegel zeichnen, so dass Spiegelobjekt im Stencil Buffer eingetragen wird
+    // *** Framebuffer dabei auf Read-Only setzen, Depth Buffer deaktivieren, Stencil Test aktivieren
+    glDisable(GL_DEPTH_TEST);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_ALWAYS, 1, 1);
-	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-	// draw mask
-	drawMirror();
+    glEnable(GL_STENCIL_TEST);
+    glStencilFunc(GL_ALWAYS, 1, 1);
+    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+    // draw mask
+    drawMirror();
 
-	// *** Gespiegelte Szene zeichnen, Stencil Buffer so einstellen, dass nur bei
-	// *** einem Eintrag 1 im Stencil Buffer das entsprechende Pixel im Framebuffer 
-	// *** gezeichnet wird, der Inhalt vom Stencil Buffer soll unveraendert bleiben 
-	// *** Depth Buffer wieder anmachen, Framebuffer Maskierung deaktivieren
-	// *** Was macht man mit der Lichtquelle ?
-	glStencilFunc(GL_EQUAL, 1, 1);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    // *** Gespiegelte Szene zeichnen, Stencil Buffer so einstellen, dass nur bei
+    // *** einem Eintrag 1 im Stencil Buffer das entsprechende Pixel im Framebuffer
+    // *** gezeichnet wird, der Inhalt vom Stencil Buffer soll unveraendert bleiben
+    // *** Depth Buffer wieder anmachen, Framebuffer Maskierung deaktivieren
+    // *** Was macht man mit der Lichtquelle ?
+    glStencilFunc(GL_EQUAL, 1, 1);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glEnable(GL_DEPTH_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
 
-	glPushMatrix();
-		// mirror along normal
-		glRotatef(rotX, 1.0f, 0.0f, 0.0f);
-		glRotatef(rotZ, 0.0f, 0.0f, 1.0f);
-		glScalef(1.0f, -1.0f, 1.0f);
+    glPushMatrix();
+        // mirror along normal
+        glRotatef(rotX, 1.0f, 0.0f, 0.0f);
+        glRotatef(rotZ, 0.0f, 0.0f, 1.0f);
+        glScalef(1.0f, -1.0f, 1.0f);
 
-		// position light again (flip it as well)
-		glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+        // position light again (flip it as well)
+        glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
-		drawScene();
-	glPopMatrix(); // *** Spiegelung der Szene rueckgaengig machen
+        drawScene();
+    glPopMatrix(); // *** Spiegelung der Szene rueckgaengig machen
 
-	// *** Stencil Test deaktivieren
-	// *** Spiegelobjekt mit diffuser Farbe mirrorColor zeichen
-	// *** Blending aktivieren und ueber Alpha-Kanal mit Spiegelbild zusammenrechnen
-	glDisable(GL_STENCIL_TEST);
-
-	glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glMaterialfv(GL_FRONT, GL_DIFFUSE, mirrorColor);
-		drawMirror();
-	glDisable(GL_BLEND);
+    // *** Stencil Test deaktivieren
+    // *** Spiegelobjekt mit diffuser Farbe mirrorColor zeichen
+    // *** Blending aktivieren und ueber Alpha-Kanal mit Spiegelbild zusammenrechnen
+    glDisable(GL_STENCIL_TEST);
+	
+    glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mirrorColor);
+        drawMirror();
+        drawTexturedMirror();
+    glDisable(GL_BLEND);
 
 	// problem: better don't look underneath the mirror... (should fix that)
 	// maybe do the extra-task, too
@@ -208,6 +283,8 @@ int main(int argc, char **argv)
 	glEnable(GL_LIGHT0);
 
 	glEnable(GL_DEPTH_TEST);
+	
+	glEnable(GL_TEXTURE_2D);
 
 	glViewport(0,0,width,height);					
 	glMatrixMode(GL_PROJECTION);					
@@ -218,6 +295,9 @@ int main(int argc, char **argv)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
+	generateTexture();		
+	glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE);	
+	
 	glutMainLoop();
 	return 0;
 }
