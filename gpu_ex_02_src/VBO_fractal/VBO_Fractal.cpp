@@ -59,6 +59,9 @@ GLuint normalBufferHandle;
 GLuint indexBufferHandle;
 GLuint vertexArrayHandle;
 
+GLuint displayListHandle = 1;
+GLuint rendermode = 0;
+
 Triangle startTriangle(Vector(0, 0, 0), Vector(0, 0, 1), Vector(1, 0, 0));
 
 Vector startP0(-0.5f, 0.0f, 0.5f*sqrt(3.0f));
@@ -144,7 +147,7 @@ void generateTetraeders(Vector p0, Vector p1, Vector p2, Vector p3, int level)
 
 void generateGeometryVertexBuffer()
 {
-	// TODO: Erzeugen eines Vertex Buffer Objects für die Positionen.
+	// TODO: Erzeugen eines Vertex Buffer Objects fÃ¼r die Positionen.
 	// Hinweis: Die Erzeugung eiens VBOs vollzieht sich in 4 Schritten
 	// - Generieren eines Buffer Handles
 	// - Binden des Buffers (Target = GL_ARRAY_BUFFER)
@@ -157,7 +160,7 @@ void generateGeometryVertexBuffer()
 	glVertexPointer(3,GL_FLOAT,0,NULL);
 	glBindBuffer(GL_ARRAY_BUFFER,0);
 
-	// TODO: Erzeugen eines Vertex Buffer Objects für die Normalen.
+	// TODO: Erzeugen eines Vertex Buffer Objects fÃ¼r die Normalen.
     unsigned int normalsVBOSizeInByte = sizeof(normals[0])*normals.size();
 	glGenBuffers(1,&normalsVBO);	
 	glBindBuffer(GL_ARRAY_BUFFER,normalsVBO);
@@ -175,21 +178,21 @@ void generateGeometryVertexBuffer()
 	
 	
 	// TODO: Erzeugen eines Vertex Array Objects (VAOs).
-	// VAOs werden genutzt um der GPU mitzuteilen, von welchen VBOs die Daten für das Rendering genommen werden sollen.
+	// VAOs werden genutzt um der GPU mitzuteilen, von welchen VBOs die Daten fÃ¼r das Rendering genommen werden sollen.
 	// - Generieren eines Vertex Array Handles
 	// - Binden des Vertex-Array Handles
 		// Binden des VBOs, von dem die Positionen geholt werden sollen
-		// mit glVertexAttribPointer der GPU mitteilen, wie das VBO interpretiert werden soll. Im folgenden werden die Parameter kurz erklärt.
+		// mit glVertexAttribPointer der GPU mitteilen, wie das VBO interpretiert werden soll. Im folgenden werden die Parameter kurz erklÃ¤rt.
 		//   Der erste Parameter ist der Index des Vertex-Attributes. (0=Position, 2=Normale)
 		//   Daraufhin folgen die Dimension der Daten (z.B. bei Positions = 3 (wegen xyz)) und der Datentyp.
-		//   Die Eingabedaten müssen nicht normalisiert werden.
+		//   Die Eingabedaten mÃ¼ssen nicht normalisiert werden.
 		//   Der Stride misst den Offset in Byte zwischen zwei Datenwerten im Buffer.
-		//   Der letzte Wert ist der BufferOffset, der angewendet werden soll. In unserem Beispiel ist er immer 0, da wir für jedes Attribut einen eigenes VBO nutzen.
+		//   Der letzte Wert ist der BufferOffset, der angewendet werden soll. In unserem Beispiel ist er immer 0, da wir fÃ¼r jedes Attribut einen eigenes VBO nutzen.
 		// Binden des VBOs, von dem die Positionen geholt werden sollen
 		// wieder glVertexAttribPointer nutzen..
-		// Aufräumen: Den Wert '0' als Vertex Buffer Object binden. (kein VBO mehr aktiv)
+		// AufrÃ¤umen: Den Wert '0' als Vertex Buffer Object binden. (kein VBO mehr aktiv)
 		// Zuletzt muss mitgeteilt werden, welche Vertex-Attribut Indices genutzt werden sollen. Dies geschieht mit glEnableVertexAttribArray.
-	// Aufräumen: Unbinden des Vertex Array Objects (eine 0 binden).
+	// AufrÃ¤umen: Unbinden des Vertex Array Objects (eine 0 binden).
 
 	glGenVertexArrays(1,&VAO);
 	glBindVertexArray(VAO);
@@ -200,8 +203,8 @@ void generateGeometryVertexBuffer()
 	glBindBuffer(GL_ARRAY_BUFFER,0);
 
 	glBindBuffer(GL_ARRAY_BUFFER,normalsVBO);
-    glVertexAttribPointer(2,3,GL_FLOAT,false,0,NULL);
-	glEnableVertexAttribArray(2);
+    glVertexAttribPointer(3,3,GL_FLOAT,false,0,NULL);
+	glEnableVertexAttribArray(3);
 	glBindBuffer(GL_ARRAY_BUFFER,0);
 
 	/*
@@ -214,10 +217,26 @@ void generateGeometryVertexBuffer()
 	glBindVertexArray(0);
 }
 
+void generateDisplayList(GLuint listNumbr)
+{
+	glNewList(listNumbr, GL_COMPILE);
+		glBegin(GL_TRIANGLES);
+		for (unsigned int i = 0 ; i < positions.size() ; i += 3) {
+			glNormal3fv(&normals[i][0]);
+			glVertex3fv(&positions[i][0]);
+			glNormal3fv(&normals[i+1][0]);
+			glVertex3fv(&positions[i+1][0]);
+			glNormal3fv(&normals[i+2][0]);
+			glVertex3fv(&positions[i+2][0]);
+		}
+		glEnd();
+	glEndList();
+}
+
 
 void drawGeometryVertexBuffer()
 {
-	// TODO: Binden des VAOs. (Die GPU weiß nun, wo sie die Geometriedaten herzuholen hat.)
+	// TODO: Binden des VAOs. (Die GPU weiÃŸ nun, wo sie die Geometriedaten herzuholen hat.)
 	glBindVertexArray(VAO);
 	// TODO: Index-Buffer binden.
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,indicesVBO);
@@ -269,24 +288,48 @@ void display()
 			  0, 1, 0);
 
 
-
-	if (useVBO) {    // fast drawing
-
-		drawGeometryVertexBuffer();
-	}
-	else {  // simple and slow drawing
-
-		glBegin(GL_TRIANGLES);
-		for (unsigned int i = 0 ; i < positions.size() ; i += 3) {
-			glNormal3fv(&normals[i][0]);
-			glVertex3fv(&positions[i][0]);
-			glNormal3fv(&normals[i+1][0]);
-			glVertex3fv(&positions[i+1][0]);
-			glNormal3fv(&normals[i+2][0]);
-			glVertex3fv(&positions[i+2][0]);
-		}
-		glEnd();
-
+	
+	switch (rendermode) 
+	{
+		case 0:
+			// fast drawing
+			drawGeometryVertexBuffer();
+			break;
+		case 1:
+			// simple and slow drawing		
+			glBegin(GL_TRIANGLES);
+			for (unsigned int i = 0 ; i < positions.size() ; i += 3) {
+				glNormal3fv(&normals[i][0]);
+				glVertex3fv(&positions[i][0]);
+				glNormal3fv(&normals[i+1][0]);
+				glVertex3fv(&positions[i+1][0]);
+				glNormal3fv(&normals[i+2][0]);
+				glVertex3fv(&positions[i+2][0]);
+			}
+			glEnd();
+			break;
+		case 2:
+			// DisplayLists
+			if(!glIsList(1))
+			{
+				glNewList(1, GL_COMPILE);
+				glBegin(GL_TRIANGLES);
+				for (unsigned int i = 0 ; i < positions.size() ; i += 3) {
+					glNormal3fv(&normals[i][0]);
+					glVertex3fv(&positions[i][0]);
+					glNormal3fv(&normals[i+1][0]);
+					glVertex3fv(&positions[i+1][0]);
+					glNormal3fv(&normals[i+2][0]);
+					glVertex3fv(&positions[i+2][0]);
+				}
+				glEnd();
+				glEndList();
+			}
+			else
+			{
+				glCallList(1);
+			}
+			break;
 	}
 
 	// glutSolidTeapot(1.0);
@@ -297,7 +340,8 @@ void display()
 
 	// measure frame time in milliseconds
 	int timeEnd = glutGet(GLUT_ELAPSED_TIME);
-	printf("Delay %d     \r",timeEnd - timeStart);
+	printf("rendermode: %d  ,Delay %d     \r",rendermode,timeEnd - timeStart);
+	//printf("Delay %d     \r",timeEnd - timeStart);
 }
 
 // use a virtual trackball as mouse control
@@ -346,12 +390,10 @@ void mouse(int button, int state, int x, int y)
 
 void keyboard(unsigned char key, int x, int y)
 {
-	switch (key) {
-	case ' ':
-		useVBO = !useVBO;
-		break;
-	}
-
+	if(key == ' ')
+	{
+		rendermode = (rendermode + 1)%3;
+	}	
 }
 void initGL()
 {
@@ -395,6 +437,7 @@ int main(int argc, char** argv)
 	glutMotionFunc(mouseMotion);
 	glutMouseFunc(mouse);
 
+	generateDisplayList(displayListHandle);
 
 	// subdivideTriangle(startTriangle, 4.0, 0);
 	generateTetraeders(5.0*startP0, 5.0*startP1, 5.0*startP2, 5.0*startP3, 0);
