@@ -3,3 +3,5 @@
 !*.h
 !*.jpeg
 !*.bmp
+!*.frag
+!*.vert
