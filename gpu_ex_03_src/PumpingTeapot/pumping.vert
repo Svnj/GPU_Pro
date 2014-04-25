@@ -1,4 +1,5 @@
 // TODO: Uniform-Parameter einfügen.
+uniform float pumpTime;
 
 void main() {
 
@@ -7,6 +8,7 @@ void main() {
 	normal = normalize(normal);
 
 	// TODO: Pumping-Teapot Formel einfügen.
+	gl_Position = gl_Position + 0.25f * abs(sin(0.125*pumpTime))*vec4(normal,0.0f);
 
 	vec4 outColor = gl_FrontMaterial.emission
 				+ gl_FrontMaterial.ambient * gl_LightModel.ambient
@@ -23,10 +25,10 @@ void main() {
 	// This is the vector halfway between the directions from the vertex to
 	// the light source and to the viewer. Since the camera is at the origin,
 	// the vector to the viewer is (0 0 1).
-	vec3 half = normalize(light + vec3(0, 0, 1));
+	vec3 halfway = normalize(light + vec3(0, 0, 1));
 
 	// Calculate specular lighting
-	outColor +=  gl_FrontMaterial.specular * gl_LightSource[0].specular * pow(max(0.0, dot(half, normal)), gl_FrontMaterial.shininess);
+	outColor +=  gl_FrontMaterial.specular * gl_LightSource[0].specular * pow(max(0.0, dot(halfway, normal)), gl_FrontMaterial.shininess);
 
 	gl_TexCoord[0] = gl_MultiTexCoord0;
 	

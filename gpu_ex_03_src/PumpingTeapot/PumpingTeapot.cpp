@@ -26,6 +26,8 @@ int height = 512;
 // uniform locations
 GLint uniformTime;
 
+float pumpTime = 0.0f;
+
 bool usePumping = true;
 
 // Print information about the compiling step
@@ -117,40 +119,52 @@ void initGL()
 void initGLSL()
 {
 	// TODO: Create empty shader object (vertex shader) and assign it to 'vertexShaderPumping'
+	vertexShaderPumping = glCreateShader(GL_VERTEX_SHADER);
 	
 	// Read vertex shader source 
 	string shaderSource = readFile("pumping.vert");
 	const char* sourcePtr = shaderSource.c_str();
 
 	// TODO: Attach shader code
+    glShaderSource (vertexShaderPumping, 1, &sourcePtr, NULL);
 	
-	// TODO: Compile shader	
-	
+	// TODO: Compile shader
+    glCompileShader (vertexShaderPumping);	
+
 	printShaderInfoLog(vertexShaderPumping);
 
 	// TODO: Create empty shader object (fragment shader) and assign it to 'fragmentShaderPumping'
+	fragmentShaderPumping = glCreateShader(GL_FRAGMENT_SHADER);
 
 	// Read vertex shader source 
 	shaderSource = readFile("pumping.frag");
 	sourcePtr = shaderSource.c_str();
 
 	// TODO: Attach shader code
+	glShaderSource (fragmentShaderPumping, 1, &sourcePtr, NULL);
 
 	// TODO: Compile shader
+	glCompileShader (fragmentShaderPumping);
 
 	printShaderInfoLog(fragmentShaderPumping);
 
 	// TODO: Create shader program and assign it to 'shaderProgramPumping'
+	shaderProgramPumping = glCreateProgram ();
 
 	// TODO: Attach shader vertex shader and fragment shader to program	
+    glAttachShader(shaderProgramPumping, fragmentShaderPumping);
+    glAttachShader(shaderProgramPumping, vertexShaderPumping);
 
 	// TODO: Link program
+    glLinkProgram(shaderProgramPumping);
 	
 	printProgramInfoLog(shaderProgramPumping);
 
 	// TODO: Use program.	
+    glUseProgram(shaderProgramPumping);
 
 	// TODO: Teilaufgabe 3... Die Uniform Location der Zeit-Variable bestimmen.	
+	uniformTime = glGetUniformLocation (shaderProgramPumping, "pumpTime");
 }
 
 void keyboard(unsigned char key, int x, int y)
@@ -170,6 +184,7 @@ void display()
 	if (usePumping) {
 		glUseProgram( shaderProgramPumping );
 		// TODO: Den Zeitparameter (uniform) aktualisieren.
+		glUniform1f(uniformTime,pumpTime);
 	}
 	else {
 		glUseProgram( 0 );
@@ -188,6 +203,7 @@ void display()
 	alpha += 1;
 
 	// TODO: Inkrementieren des Zeit Parameters.
+	pumpTime += 1.0f;	
 
 	// Swap display buffers
 	glutSwapBuffers();
