@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <GL/freeglut.h>
 #include <iostream>
+#include <cstdio>
 using namespace std;
 
 // Global variables
@@ -62,7 +63,7 @@ int initFBOTextures()
 	glBindTexture (GL_TEXTURE_2D, sceneTextureId);
 	glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, width*(1<<samples), height*(1<<samples), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	// TODO: Der Min-Filter führt derzeit noch kein MipMapping durch. Nutzen Sie auch den Nearest-Filter für das MipMapping!
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);	// <- hier den letzten Parameter ändern
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);	// <- hier den letzten Parameter ändern
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
@@ -81,7 +82,9 @@ int initFBOTextures()
 	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTextureId, 0);
 
 	// TODO: Binden der Szenen Textur
+	glBindTexture(GL_TEXTURE_2D,sceneTextureId);
 	// TODO: Setzen Sie die mindest LOD Stufe auf 'samples'. Nutzen Sie dafpr die Texture Filter Control von glTexEnvf	
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_LOD,samples);
 
 	// check framebuffer status
 	GLenum status = glCheckFramebufferStatus (GL_FRAMEBUFFER);
@@ -260,8 +263,10 @@ void display()
 	if (useSSAA)
 	{
 		// TODO: Größe des Viewports auf das 2^(samples) fache setzen
+		glViewport(0,0,width*samples*samples,height*samples*samples);
 		
 		// TODO: Binden des FBOs, in das gerendert werden soll.		
+		glBindFramebuffer(GL_FRAMEBUFFER,sceneFB);
 
 		// Clear Color- und Depth-Buffer
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -270,18 +275,25 @@ void display()
 		drawScene();
 
 		// TODO: Viewport auf die Auflösung des Backbuffers setzen.
+		glViewport(0,0,width,height);
 		
-		// TODO: FBO abschalten: jetzt wird wieder in den Backbuffer gerendert		
+		// TODO: FBO abschalten: jetzt wird wieder in den Backbuffer gerendert
+		glBindFramebuffer(GL_FRAMEBUFFER,0);		
 
 		// TODO: Binden der Szenen-Textur.
+		glBindTexture(GL_TEXTURE_2D,sceneTextureId);
 
 		// TODO: Da die Textur nun aktiv ist, müssen die MipMap Stufen neu generiert werden.
-		
+		glGenerateMipmap(GL_TEXTURE_2D);		
+
 		// TODO: Color- und Depth-Buffer clearen.
-		
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		// TODO: Das Fullscreen Quad rendern, das mit der FBO Textur texturiert ist.		
+		drawScreenFillingQuad();	
 
 		// TODO: Textur nicht mehr binden.
+		glBindTexture(GL_TEXTURE_2D,0);
 	}
 	else
 	{
@@ -313,10 +325,11 @@ int main(int argc, char** argv)
    glutInit(&argc, argv);
 
    // TODO: Enable Multi-Sampling
+	glEnable(GL_MULTISAMPLE);
    glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
    glutInitWindowSize(width, height);
    glutCreateWindow("Super-Sampling Anti-Aliasing");
-
+	
    // Init glew so that the GLSL functionality will be available
    if(glewInit() != GLEW_OK)
 	   cout << "GLEW init failed!" << endl;
