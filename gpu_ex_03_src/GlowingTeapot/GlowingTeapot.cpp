@@ -17,20 +17,31 @@ GLfloat alpha = 0;
 // Blur Shader Program
 GLuint vertexShaderBlur = -1;	
 GLuint fragmentShaderBlur = -1;
+GLuint fragmentShaderBlurVert = -1;
+GLuint fragmentShaderBlurHor = -1;
+
 GLuint shaderProgramBlur = -1;
+GLuint shaderProgramBlurVert = -1;
+GLuint shaderProgramBlurHor = -1;
 
 // Texture Ids and Framebuffer Object Ids
 GLuint teapotTextureId = 0;
 GLuint depthTextureId = 0;
+GLuint blurHorizontalTextureId = 0;
+
 GLuint teapotFB = 0;
+GLuint blurHorizontalFB = 0;
 
 // Window size
 int width = 512;       
 int height = 512;
 
+unsigned int renderMode = 0;
+
 // uniform locations
-GLint teapotTextureLocation;
-GLint blurHorizontalTextureLocation;
+GLint teapotTextureLocation = -1;
+GLint blurHorizontalTextureLocation = -1;
+GLint blurVerticalTextureLocation = -1;
 
 bool useBlur = true;
 
@@ -153,7 +164,37 @@ void initGLSL()
 
 	printShaderInfoLog(fragmentShaderBlur);
 
-	// TODO: Create shader program and assign it to 'shaderProgramPumping'
+	// TODO: Create empty shader object (fragment shader) and assign it to 'fragmentShaderBlurVert'
+	fragmentShaderBlurVert = glCreateShader(GL_FRAGMENT_SHADER);
+
+	// Read vertex shader source 
+	shaderSource = readFile("blur_vert.frag");
+	sourcePtr = shaderSource.c_str();
+
+	// TODO: Attach shader code
+	glShaderSource (fragmentShaderBlurVert, 1, &sourcePtr, NULL);
+
+	// TODO: Compile shader
+	glCompileShader (fragmentShaderBlurVert);	
+
+	printShaderInfoLog(fragmentShaderBlurVert);
+
+	// TODO: Create empty shader object (fragment shader) and assign it to 'fragmentShaderBlurHor'
+	fragmentShaderBlurHor = glCreateShader(GL_FRAGMENT_SHADER);
+
+	// Read vertex shader source 
+	shaderSource = readFile("blur_hor.frag");
+	sourcePtr = shaderSource.c_str();
+
+	// TODO: Attach shader code
+	glShaderSource (fragmentShaderBlurHor, 1, &sourcePtr, NULL);
+
+	// TODO: Compile shader
+	glCompileShader (fragmentShaderBlurHor);	
+
+	printShaderInfoLog(fragmentShaderBlurHor);
+
+	// TODO: Create shader program and assign it to 'shaderProgramBlur'
 	shaderProgramBlur = glCreateProgram ();	
 
 	// TODO: Attach shader vertex shader and fragment shader to program	
@@ -165,15 +206,60 @@ void initGLSL()
 	
 	printProgramInfoLog(shaderProgramBlur);
 
+	// TODO: Create shader program and assign it to 'shaderProgramBlurVert'
+	shaderProgramBlurVert = glCreateProgram ();	
+
+	// TODO: Attach shader vertex shader and fragment shader to program	
+    glAttachShader(shaderProgramBlurVert, fragmentShaderBlurVert);
+    glAttachShader(shaderProgramBlurVert, vertexShaderBlur);
+
+	// TODO: Link program
+    glLinkProgram(shaderProgramBlurVert);
+	
+	printProgramInfoLog(shaderProgramBlurVert);
+
+	// TODO: Create shader program and assign it to 'shaderProgramBlurHor'
+	shaderProgramBlurHor = glCreateProgram ();	
+
+	// TODO: Attach shader vertex shader and fragment shader to program	
+    glAttachShader(shaderProgramBlurHor, fragmentShaderBlurHor);
+    glAttachShader(shaderProgramBlurHor, vertexShaderBlur);
+
+	// TODO: Link program
+    glLinkProgram(shaderProgramBlurHor);
+	
+	printProgramInfoLog(shaderProgramBlurHor);
+
 	// TODO: Use program.	
-    glUseProgram(shaderProgramBlur);
 
 	// Eingabe in diesen Shader ist die Textur, in die die Szene gerendert wird.
 	// An dieser Stelle wird die uniform Location für die Textur-Variable im Shader geholt.
+	/* TextureLocations:
+	- teapotTextureLocation;
+	- blurHorizontalTextureLocation;
+	- blurVerticalTextureLocation;
+	*/
+
+	glUseProgram(shaderProgramBlurVert);
+	blurVerticalTextureLocation = glGetUniformLocation( shaderProgramBlurVert, "texture" );
+	glUniform1i(blurVerticalTextureLocation, 1);   
+	if(blurVerticalTextureLocation == -1)
+		cout << "ERROR: No uniform texture in shaderProgramBlurVert" << endl;
+	
+    glUseProgram(shaderProgramBlurHor);
+	blurHorizontalTextureLocation = glGetUniformLocation( shaderProgramBlurHor, "texture" );
+	glUniform1i(blurHorizontalTextureLocation, 0);   
+	if(teapotTextureLocation == -1)
+		cout << "ERROR: No uniform texture in shaderProgramBlurHor" << endl;	
+
+	glUseProgram(shaderProgramBlur);
 	teapotTextureLocation = glGetUniformLocation( shaderProgramBlur, "texture" );
 	glUniform1i(teapotTextureLocation, 0);   
 	if(teapotTextureLocation == -1)
-		cout << "ERROR: No such uniform teapot" << endl;
+		cout << "ERROR: No uniform texture in shaderProgramBlur" << endl;
+
+	//glUseProgram(shaderProgramBlur);
+
 }
 
 
@@ -182,6 +268,15 @@ int initFBOTextures()
 	// Textur (fuer Teapot Bild) anlegen
 	glGenTextures (1, &teapotTextureId);
 	glBindTexture (GL_TEXTURE_2D, teapotTextureId);
+	glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+	// Textur (fuer horizontalen Filter) anlegen
+	glGenTextures (1, &blurHorizontalTextureId);
+	glBindTexture (GL_TEXTURE_2D, blurHorizontalTextureId);
 	glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -203,7 +298,19 @@ int initFBOTextures()
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture (GL_TEXTURE_2D, teapotTextureId); // texture 0 is the teapot color buffer
-		
+	
+	// FBO (fuer horizontalen Filter) anlegen und Texturen zuweisen
+	glGenFramebuffers (1, &blurHorizontalFB);
+	glBindFramebuffer (GL_FRAMEBUFFER, blurHorizontalFB);
+	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, blurHorizontalTextureId, 0);
+	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTextureId, 0);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture (GL_TEXTURE_2D, blurHorizontalTextureId); // texture 1 is the horizontal filter color buffer
+	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture (GL_TEXTURE_2D, teapotTextureId);
+
 	// check framebuffer status
 	GLenum status = glCheckFramebufferStatus (GL_FRAMEBUFFER);
 	switch (status)
@@ -227,8 +334,8 @@ void keyboard(unsigned char key, int x, int y)
 	// set parameters
 	switch (key) 
 	{       
-		case 'b':
-			useBlur = !useBlur;
+		case ' ':
+			renderMode = (renderMode+1)%3;
 			break;
 	}
 }
@@ -272,11 +379,23 @@ void drawScreenFillingQuad()
 
 void display()
 {	
+	/* 	Textures:
+		- teapotTextureId;	
+		- depthTextureId;
+		- blurHorizontalTextureId
+
+		FBO's:
+		- teapotFB
+		- blurHorizontalFB;
+	*/
+
+	int timeStart = glutGet(GLUT_ELAPSED_TIME);
+
 	// Pumping Shader anschalten falls aktiviert
 	glUseProgram( 0 );
 	
 	// falls Blur Shader aktiviert ist, muss in eine Textur gerendert werden
-	if (useBlur)
+	if (renderMode == 1 | renderMode == 2)
 		glBindFramebuffer (GL_FRAMEBUFFER, teapotFB);      // activate fbo
 
 	// Clear window
@@ -292,12 +411,33 @@ void display()
 	glBindFramebuffer (GL_FRAMEBUFFER, 0);      // deactivate fbo
 
 	// Blur Shader aktivieren und bildschirmfuellendes Rechteck zeichnen
-	if (useBlur) {
+	if (renderMode == 1) {
 		
-		glUseProgram( shaderProgramBlur ); // activate horizontal blur shader
+		glUseProgram(shaderProgramBlur); // activate blur shader
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		drawScreenFillingQuad();
+
+		glUseProgram( 0 );
+
+		// TODO: Teapot oben drüber zeichnen.
+		glutSolidTeapot(3);
+	}
+
+	if(renderMode == 2)
+	{	
+		glBindFramebuffer (GL_FRAMEBUFFER, blurHorizontalFB);
+		glUseProgram(shaderProgramBlurHor); // activate blur shader		
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		drawScreenFillingQuad();
+		
+
+		glBindFramebuffer (GL_FRAMEBUFFER, 0);
+		glUseProgram( shaderProgramBlurVert );
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		drawScreenFillingQuad();		
 
 		glUseProgram( 0 );
 
@@ -310,6 +450,9 @@ void display()
 
 	// Swap display buffers
 	glutSwapBuffers();
+
+	int timeEnd = glutGet(GLUT_ELAPSED_TIME);
+	printf("rendermode: %d  ,Delay %d     \r",renderMode,timeEnd - timeStart);
 }
 
 void timer(int value)
