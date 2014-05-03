@@ -63,7 +63,7 @@ int initFBOTextures()
 	glBindTexture (GL_TEXTURE_2D, sceneTextureId);
 	glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, width*(1<<samples), height*(1<<samples), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	// TODO: Der Min-Filter führt derzeit noch kein MipMapping durch. Nutzen Sie auch den Nearest-Filter für das MipMapping!
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);	// <- hier den letzten Parameter ändern
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);	// <- hier den letzten Parameter ändern
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
@@ -133,6 +133,7 @@ void initTexture()
 
 void keyboard(unsigned char key, int x, int y)
 {
+	printf(": ");
 	// set parameters
 	switch (key) 
 	{       
@@ -153,6 +154,16 @@ void keyboard(unsigned char key, int x, int y)
 			// Per-Sample Shading = für alle Samples
 			// Per-Pixel Shading = für ein einziges Sample
 
+			if(usePerSampleShading)
+			{
+				glEnable(GL_SAMPLE_SHADING);
+				glMinSampleShading(1.0f);
+			}
+			else
+			{
+				glMinSampleShading(0.0f);
+				glDisable(GL_SAMPLE_SHADING);
+			}
 			printf(useSSAA ? "SSAA/" : (usePerSampleShading ? "MSAA(sample)/" : "MSAA(pixel)/") );
 			printf(useTexturedQuad ? "Texture        \r" : "Geometry        \r");
 			break;
@@ -325,8 +336,8 @@ int main(int argc, char** argv)
    glutInit(&argc, argv);
 
    // TODO: Enable Multi-Sampling
-	glEnable(GL_MULTISAMPLE);
-   glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
+   glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GL_MULTISAMPLE);
+	//glEnable(GL_MULTISAMPLE);
    glutInitWindowSize(width, height);
    glutCreateWindow("Super-Sampling Anti-Aliasing");
 	
