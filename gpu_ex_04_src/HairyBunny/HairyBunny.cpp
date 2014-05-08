@@ -291,6 +291,8 @@ void initGL()
 	// Enable depth buffer
 	glEnable(GL_DEPTH_TEST);
 
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 

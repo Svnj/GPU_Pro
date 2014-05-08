@@ -1,11 +1,15 @@
-
+#version 330
 
 varying vec4 diffuse, ambient;
 varying vec3 normal, lightDir;
 
-attribute vec3 in_Position;
-attribute vec3 in_Normal;
-attribute vec2 in_TexCoord;
+layout (location = 0) in vec3 in_Position;
+layout (location = 1) in vec3 in_Normal;
+layout (location = 2) in vec2 in_TexCoord;
+
+out vec4 position;
+out vec3 normal;
+out vec4 color;
 
 void main()
 {

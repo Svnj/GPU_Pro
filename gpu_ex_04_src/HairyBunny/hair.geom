@@ -18,7 +18,8 @@ void main(void)
 	//Pass-thru!
 	gl_Position = vec4(0);
 	for(int i=0; i< gl_in.length(); i++){
-		gl_Position = gl_in[i].gl_Position + vec4(1, 0, -1, 0);
+		gl_Position = gl_in[i].gl_Position;// + vec4(1, 0, -1, 0);
+		gl_Position.x += 1;
 		gl_Position = Projection * View * gl_Position;
 		EmitVertex();
 	}
@@ -26,7 +27,7 @@ void main(void)
 
 	gl_Position = vec4(0);
 	for(int i=0; i< gl_in.length(); i++){
-		gl_Position = gl_in[i].gl_Position + vec4(-1, 0, -1, 0);
+		//gl_Position = gl_in[i].gl_Position + vec4(-1, 0, -1, 0);
 		gl_Position = Projection * View * gl_Position;
 		EmitVertex();
 	}
