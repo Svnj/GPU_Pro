@@ -131,12 +131,12 @@ void mouseMotion(int x, int y)
 	float deltaY = y - oldY;
 	
 	if (motionState == ROTATE) {
-		theta -= 0.001f * deltaY;
+		theta -= 0.002f * deltaY;
 
-		if (theta < 0.001f) theta = 0.001f;
-		else if (theta > PI - 0.001f) theta = PI - 0.001f;
+		if (theta < 0.002f) theta = 0.002f;
+		else if (theta > PI - 0.002f) theta = PI - 0.002f;
 
-		phi += 0.001f * deltaX;	
+		phi += 0.002f * deltaX;	
 		if (phi < 0) phi += 2*PI;
 		else if (phi > 2*PI) phi -= 2*PI;
 		calcViewerCamera(theta, phi, r);
@@ -341,12 +341,15 @@ void initGLSL()
 	printShaderInfoLog(geometryShaderHair);
 
 	// Create shader program
-	progHair = glCreateProgram();	
+	progHair = glCreateProgram();
 
 	// Attach shader
 	glAttachShader(progHair, vertexShaderHair);
 	glAttachShader(progHair, fragmentShaderHair);
 	glAttachShader(progHair, geometryShaderHair);
+
+	// Set output size of shader
+	//glProgramParameteriEXT(progHair, GL_GEOMETRY_VERTICES_OUT, 4);
 
 	// Link program
 	glLinkProgram(progHair);
