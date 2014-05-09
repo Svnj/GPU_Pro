@@ -41,9 +41,14 @@ GLuint vaoBunny;
 GLuint iboBunny;
 GLuint progSimple;
 GLuint progHair;
+GLuint progDup;
+GLuint progNormalHair;
+GLuint progFluffyHair;
 GLuint uboCamera;
 
 GLuint uboIndex;
+
+unsigned int geometryShader = 1;
 
 extern float bunnyData[];
 extern unsigned int bunnyStride;
@@ -179,11 +184,21 @@ void display(void)
 	// clear frame.
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// TODO: Den Block-Index des Uniform-Blocks suchen, das im Shader 'progSimple' den Namen "GlobalMatrices" trägt.
-	uboIndex = glGetUniformBlockIndex(progHair, "GlobalMatrices");
-	
-	// TODO: Binden Sie diesen Blockindex an den Binding Point 0.
-	glUniformBlockBinding(progHair, uboIndex, 0);
+	switch(geometryShader)
+	{
+		case 2: 	uboIndex = glGetUniformBlockIndex(progDup, "GlobalMatrices"); // TODO: Den Block-Index des Uniform-Blocks suchen, das im Shader 'progSimple' den Namen "GlobalMatrices" trägt.
+					glUniformBlockBinding(progDup, uboIndex, 0); // TODO: Binden Sie diesen Blockindex an den Binding Point 0.
+					break;
+		case 3: 	uboIndex = glGetUniformBlockIndex(progNormalHair, "GlobalMatrices");
+					glUniformBlockBinding(progNormalHair, uboIndex, 0);
+					break;
+		case 4: 	uboIndex = glGetUniformBlockIndex(progFluffyHair, "GlobalMatrices");
+					glUniformBlockBinding(progFluffyHair, uboIndex, 0);
+					break;
+		default:	uboIndex = glGetUniformBlockIndex(progHair, "GlobalMatrices");
+					glUniformBlockBinding(progHair, uboIndex, 0);
+					break;
+	}
 	
 	// TODO: Binden Sie das gesamte UBO an den Binding Point 0. Offset = 0 und Size = Größe der Daten im UBO.
 	glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboCamera, 0, 32*sizeof(float));
@@ -198,7 +213,13 @@ void display(void)
 	glUseProgram(0);
 
 	// Draw hair
-	glUseProgram(progHair);
+	switch(geometryShader)
+	{
+		case 2: glUseProgram(progDup);	break;
+		case 3: glUseProgram(progNormalHair);	break;
+		case 4: glUseProgram(progFluffyHair);	break;
+		default:glUseProgram(progHair);	break;
+	}
 	glDrawElements(GL_TRIANGLES, bunnyIndicesSize/bunnyIndicesStride, GL_UNSIGNED_INT, 0);
 	glUseProgram(0);
 	
@@ -357,6 +378,84 @@ void initGLSL()
 	glLinkProgram(progHair);
 	printProgramInfoLog(progHair);
 
+	// Create empty shader object (geometry shader)
+	GLuint geometryShaderNormalHair = glCreateShader(GL_GEOMETRY_SHADER);
+
+	// Read vertex shader source 
+	shaderSource = readFile("normalHair.geom");
+	sourcePtr = shaderSource.c_str();
+
+	// Attach shader code
+	glShaderSource(geometryShaderNormalHair, 1, &sourcePtr, NULL);	
+
+	// Compile
+	glCompileShader(geometryShaderNormalHair);
+	printShaderInfoLog(geometryShaderNormalHair);
+
+	// Create shader program
+	progNormalHair = glCreateProgram();
+
+	// Attach shader
+	glAttachShader(progNormalHair, vertexShaderHair);
+	glAttachShader(progNormalHair, fragmentShaderHair);
+	glAttachShader(progNormalHair, geometryShaderNormalHair);
+
+	// Link program
+	glLinkProgram(progNormalHair);
+	printProgramInfoLog(progNormalHair);
+
+	// Create empty shader object (geometry shader)
+	GLuint geometryShaderFluffyHair = glCreateShader(GL_GEOMETRY_SHADER);
+
+	// Read vertex shader source 
+	shaderSource = readFile("fluffyHair.geom");
+	sourcePtr = shaderSource.c_str();
+
+	// Attach shader code
+	glShaderSource(geometryShaderFluffyHair, 1, &sourcePtr, NULL);	
+
+	// Compile
+	glCompileShader(geometryShaderFluffyHair);
+	printShaderInfoLog(geometryShaderFluffyHair);
+
+	// Create shader program
+	progFluffyHair = glCreateProgram();
+
+	// Attach shader
+	glAttachShader(progFluffyHair, vertexShaderHair);
+	glAttachShader(progFluffyHair, fragmentShaderHair);
+	glAttachShader(progFluffyHair, geometryShaderFluffyHair);
+
+	// Link program
+	glLinkProgram(progFluffyHair);
+	printProgramInfoLog(progFluffyHair);
+
+	// Create empty shader object (geometry shader)
+	GLuint geometryShaderDuplicate = glCreateShader(GL_GEOMETRY_SHADER);
+
+	// Read vertex shader source 
+	shaderSource = readFile("duplicate.geom");
+	sourcePtr = shaderSource.c_str();
+
+	// Attach shader code
+	glShaderSource(geometryShaderDuplicate, 1, &sourcePtr, NULL);	
+
+	// Compile
+	glCompileShader(geometryShaderDuplicate);
+	printShaderInfoLog(geometryShaderDuplicate);
+
+	// Create shader program
+	progDup = glCreateProgram();
+
+	// Attach shader
+	glAttachShader(progDup, vertexShaderHair);
+	glAttachShader(progDup, fragmentShaderHair);
+	glAttachShader(progDup, geometryShaderDuplicate);
+
+	// Link program
+	glLinkProgram(progDup);
+	printProgramInfoLog(progDup);
+
 	// Create empty shader object (vertex shader)
 	GLuint vertexShaderSimple = glCreateShader(GL_VERTEX_SHADER);
 
@@ -398,6 +497,26 @@ void initGLSL()
 	printProgramInfoLog(progSimple);
 }
 
+void keyboard(unsigned char key, int x, int y)
+{
+	// set parameters
+	switch (key) 
+	{       
+		case '1':
+			geometryShader = 1;
+			break;
+		case '2':
+			geometryShader = 2;
+			break;
+		case '3':
+			geometryShader = 3;
+			break;
+		case '4':
+			geometryShader = 4;
+			break;
+	}
+}
+
 //------------------------------------------------------------------------
 //   It's the main application function. Note the clean code you can
 //   obtain using he GLUT library. No calls to dark windows API
@@ -421,7 +540,7 @@ int main(int argc, char** argv)
 	initGLSL();
 
 	// Register callback functions   
-	// glutKeyboardFunc(keyboard);
+	glutKeyboardFunc(keyboard);
 	glutMotionFunc(mouseMotion);
 	glutMouseFunc(mouse);
 	glutDisplayFunc(display);
