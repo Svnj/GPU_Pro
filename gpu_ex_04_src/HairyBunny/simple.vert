@@ -1,7 +1,7 @@
 #version 330
 
-varying vec4 diffuse, ambient;
-varying vec3 normal, lightDir;
+out vec4 diffuse, ambient;
+out vec3 lightDir;
 
 layout (location = 0) in vec3 in_Position;
 layout (location = 1) in vec3 in_Normal;
