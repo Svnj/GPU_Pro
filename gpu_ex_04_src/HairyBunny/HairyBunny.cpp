@@ -544,6 +544,7 @@ int main(int argc, char** argv)
 	glutMotionFunc(mouseMotion);
 	glutMouseFunc(mouse);
 	glutDisplayFunc(display);
+	glutIdleFunc(display);
 	
 	// Enter main loop
 	glutMainLoop();
