@@ -312,7 +312,7 @@ void initGL()
 	// Enable depth buffer
 	glEnable(GL_DEPTH_TEST);
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
@@ -347,6 +347,20 @@ void initGLSL()
 	// Compile
 	glCompileShader(fragmentShaderHair);
 	printShaderInfoLog(fragmentShaderHair);
+
+	// Create empty shader object (fragment shader)
+	GLuint fragmentShaderFluffyHair = glCreateShader(GL_FRAGMENT_SHADER);
+
+	// Read vertex shader source 
+	shaderSource = readFile("fluffyHair.frag");
+	sourcePtr = shaderSource.c_str();
+
+	// Attach shader code
+	glShaderSource(fragmentShaderFluffyHair, 1, &sourcePtr, NULL);	
+
+	// Compile
+	glCompileShader(fragmentShaderFluffyHair);
+	printShaderInfoLog(fragmentShaderFluffyHair);
 
 
 	// Create empty shader object (geometry shader)
@@ -423,7 +437,7 @@ void initGLSL()
 
 	// Attach shader
 	glAttachShader(progFluffyHair, vertexShaderHair);
-	glAttachShader(progFluffyHair, fragmentShaderHair);
+	glAttachShader(progFluffyHair, fragmentShaderFluffyHair);
 	glAttachShader(progFluffyHair, geometryShaderFluffyHair);
 
 	// Link program

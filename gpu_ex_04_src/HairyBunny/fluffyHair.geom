@@ -10,7 +10,7 @@ layout(triangle_strip, max_vertices = OUT_VERTS) out;
 in vec3 normal[3];
 
 float grav = 0.005f;
-float displacementFactor = 0.005;
+float displacementFactor = 0.025;
 
 layout(std140) uniform GlobalMatrices
 {
@@ -24,7 +24,7 @@ void transformAndEmitVertex()
 	EmitVertex();
 }
 
-void placeTwoPoints(vec4 position,vec3 displacementVector)
+void placeTwoPoints(vec4 position,vec3 displacementVector, float displacementFactor)
 {
 	gl_Position = position;
 	gl_Position -= vec4(displacementVector * displacementFactor,0);
@@ -48,13 +48,13 @@ void main(void)
 		displacementVector = cross(normal[i],vec3(0,0,1));
 		normalize(displacementVector);
 
-		placeTwoPoints(position,displacementVector);
+		placeTwoPoints(position,displacementVector,displacementFactor);
 
 		for(int j=2; j< OUT_VERTS/2; j++){
 			position = position + positionStep;
 			position.y -= j * grav;
 
-			placeTwoPoints(position,displacementVector);
+			placeTwoPoints(position,displacementVector,displacementFactor/j);
 		}
 		EndPrimitive();
 	}
