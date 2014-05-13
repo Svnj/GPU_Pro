@@ -9,6 +9,8 @@ layout(triangle_strip, max_vertices = OUT_VERTS) out;
 
 in vec3 normal[3];
 
+flat out vec3 originatingVertex;
+
 float grav = 0.005f;
 float displacementFactor = 0.025;
 
@@ -40,6 +42,8 @@ void main(void)
 	vec4 position = vec4(0);
 	vec4 positionStep = vec4(0);
 	vec3 displacementVector = vec3(0);
+
+	originatingVertex = gl_in[0].gl_Position.xyz;
 
 	for(int i=0; i< gl_in.length(); i++){
 		// vertex
