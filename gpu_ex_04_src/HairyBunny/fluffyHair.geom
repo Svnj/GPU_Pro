@@ -11,8 +11,8 @@ in vec3 normal[3];
 
 flat out vec3 originatingVertex;
 
-float grav = 0.005f;
-float displacementFactor = 0.025;
+const float grav = 0.005f;
+const float displacementFactor = 0.0125*2;
 
 layout(std140) uniform GlobalMatrices
 {
@@ -42,22 +42,26 @@ void main(void)
 	vec4 position = vec4(0);
 	vec4 positionStep = vec4(0);
 	vec3 displacementVector = vec3(0);
-
+	vec3 growthVector = vec3(0);
 	originatingVertex = gl_in[0].gl_Position.xyz;
 
 	for(int i=0; i< gl_in.length(); i++){
 		// vertex
+		originatingVertex = gl_in[i].gl_Position.xyz;
+				
 		position= gl_in[i].gl_Position;
-		positionStep = (vec4(normal[i]*0.1,0))/(OUT_VERTS/2);
-		displacementVector = cross(normal[i],vec3(0,0,1));
+		growthVector = normal[i];
+		//growthVector = (inverse(View)*vec4(0.0f,-1.0f,1.0f,0.0f)).xyz;
+		positionStep = (vec4(growthVector*0.1,0))/(OUT_VERTS/2);		
+		//displacementVector = cross(normal[i],vec3(0,0,1));
+		displacementVector = (inverse(View)*vec4(1.0f,0.0f,0.0f,0.0f)).xyz;
 		normalize(displacementVector);
 
-		placeTwoPoints(position,displacementVector,displacementFactor);
+		placeTwoPoints(position,displacementVector,displacementFactor*2);
 
 		for(int j=1; j< OUT_VERTS/2; j++){
 			position = position + positionStep;
 			position.y -= j * grav;
-
 			placeTwoPoints(position,displacementVector,displacementFactor/j);
 		}
 		EndPrimitive();
