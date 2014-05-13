@@ -48,13 +48,13 @@ void main(void)
 	for(int i=0; i< gl_in.length(); i++){
 		// vertex
 		position= gl_in[i].gl_Position;
-		positionStep = (vec4(normal[i]*0.1,0))/(OUT_VERTS/3);
+		positionStep = (vec4(normal[i]*0.1,0))/(OUT_VERTS/2);
 		displacementVector = cross(normal[i],vec3(0,0,1));
 		normalize(displacementVector);
 
 		placeTwoPoints(position,displacementVector,displacementFactor);
 
-		for(int j=2; j< OUT_VERTS/2; j++){
+		for(int j=1; j< OUT_VERTS/2; j++){
 			position = position + positionStep;
 			position.y -= j * grav;
 
