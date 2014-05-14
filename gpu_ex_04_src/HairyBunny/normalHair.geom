@@ -22,12 +22,13 @@ void main(void)
 	gl_Position = vec4(0);
 	for(int i=0; i< gl_in.length(); i++){
 		// vertex
-		gl_Position = gl_in[i].gl_Position;
-		gl_Position = Projection * View * gl_Position;
+		vec4 Position = gl_in[i].gl_Position;
+		gl_Position = Projection * View * Position;
 		EmitVertex();
 		for(int j=1; j< OUT_VERTS; j++){
-			gl_Position = gl_Position + (vec4(normal[i]*0.25,0)/OUT_VERTS);
-			gl_Position.y -= j * grav;
+			Position = Position + (vec4(normal[i]*0.125,0)/OUT_VERTS);
+			Position.y -= j * grav;
+			gl_Position = Projection * View * Position;
 			EmitVertex();
 		}
 		EndPrimitive();
