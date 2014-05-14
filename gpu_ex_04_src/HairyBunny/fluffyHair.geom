@@ -10,9 +10,12 @@ layout(triangle_strip, max_vertices = OUT_VERTS) out;
 in vec3 normal[3];
 
 flat out vec3 originatingVertex;
+out vec3 geomNormalInEyeSpace;
+out vec3 geomPositionInEyeSpace;
 
 const float grav = 0.005f;
-const float displacementFactor = 0.0125*2;
+const float displacementFactor = 0.0125*4;
+const float displacementFactorStep = displacementFactor/((OUT_VERTS/2)-1);
 
 layout(std140) uniform GlobalMatrices
 {
@@ -22,7 +25,9 @@ layout(std140) uniform GlobalMatrices
 
 void transformAndEmitVertex()
 {
-	gl_Position = Projection * View * gl_Position;
+	vec4 geomPositionInEyeSpace4 = View * gl_Position;	
+	geomPositionInEyeSpace = geomPositionInEyeSpace.xyz;
+	gl_Position = Projection * geomPositionInEyeSpace4;
 	EmitVertex();
 }
 
@@ -56,13 +61,24 @@ void main(void)
 		//displacementVector = cross(normal[i],vec3(0,0,1));
 		displacementVector = (inverse(View)*vec4(1.0f,0.0f,0.0f,0.0f)).xyz;
 		normalize(displacementVector);
+		geomNormalInEyeSpace = (View*vec4(geomNormalInEyeSpace,0.0f)).xyz;		
 
-		placeTwoPoints(position,displacementVector,displacementFactor*2);
-
+		placeTwoPoints(position,displacementVector,displacementFactor);
+		
+		vec3 oldPosition;
 		for(int j=1; j< OUT_VERTS/2; j++){
+			oldPosition = position.xyz;
+			
+			// calculate new position			
 			position = position + positionStep;
 			position.y -= j * grav;
-			placeTwoPoints(position,displacementVector,displacementFactor/j);
+			
+			// calculate normals for lighting
+			geomNormalInEyeSpace = cross(displacementVector,normalize(position.xyz - oldPosition));
+			normalize(geomNormalInEyeSpace);
+			geomNormalInEyeSpace = (View*vec4(geomNormalInEyeSpace,0.0f)).xyz;
+
+			placeTwoPoints(position,displacementVector,displacementFactor-(displacementFactorStep*j));
 		}
 		EndPrimitive();
 	}

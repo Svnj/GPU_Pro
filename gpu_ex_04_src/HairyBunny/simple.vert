@@ -20,7 +20,7 @@ void main()
 
 	lightDir = gl_LightSource[0].position.xyz - vrcPos.xyz;
 
-	diffuse = gl_FrontMaterial.diffuse * gl_LightSource[0].diffuse;
+	diffuse = vec4(140.0f/255.0f,80.0f/255.0f,20.0f/255.0f,1.0f) * gl_LightSource[0].diffuse; //gl_FrontMaterial.diffuse
 	ambient = gl_FrontMaterial.ambient * gl_LightSource[0].ambient;
 
 	gl_Position = gl_ProjectionMatrix * vrcPos;
