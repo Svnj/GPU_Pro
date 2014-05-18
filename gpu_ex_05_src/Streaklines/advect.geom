@@ -43,7 +43,7 @@ struct PARTICLE
 in PARTICLE vs_out[1];
 
 out vec2 gs_out_Position;
-out uint gs_out_State;	// 2=Head, 1=Body, 0=Tail
+out flat uint gs_out_State;	// 2=Head, 1=Body, 0=Tail
 
 // ----------------------------------------------------------------
 // Some helpers related to the vector data.
