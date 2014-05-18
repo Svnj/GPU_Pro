@@ -420,7 +420,7 @@ void idle()
 int main(int argc, char** argv)
 {
 	// Load vector field (raw data, resolution of the grid and the bounding box).
-	const char* FileName = "H://Dev//Datasets//Cylinder2D.am";
+    const char* FileName = "Cylinder2D.am";
 	float* flowData = LoadField(FileName, &dim[0], &dim[1], &dim[2], &box_min[0], &box_min[1], &box_min[2], &box_max[0], &box_max[1], &box_max[2]);
 
 	if (!flowData)
