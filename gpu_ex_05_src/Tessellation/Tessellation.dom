@@ -29,16 +29,27 @@ layout(std140) uniform TessFactors
 void main()
 {
 	// TODO: Baryzentrische Interpolation zwischen den drei Eckpunkten durchfuehren, um den Punkt p im Dreieck zu bestimmen.
-        vec3 p0 = gl_TessCoord.x * hs_out_Position[0]; // x is one corner
-        vec3 p1 = gl_TessCoord.y * hs_out_Position[1]; // y is the 2nd corner
-        vec3 p2 = gl_TessCoord.z * hs_out_Position[2]; // z is the 3rd corner (ignore when using quads)
+        vec3 p0 = gl_TessCoord.x * hs_out_Position[0]; // gl_TessCoord.x = u
+        vec3 p1 = gl_TessCoord.y * hs_out_Position[1]; // gl_TessCoord.y = v
+        vec3 p2 = gl_TessCoord.z * hs_out_Position[2]; // gl_TessCoord.z = w
         vec3 p = p0 + p1 + p2;
 
 
 	// TODO: Projektion des Punktes p in die Tangentialebenen der Eckpunkte, wiederum baryzentrische Interpolation zwischen den projizierten Punkten ergibt Punkt q.
-	
+        // link to relevant paper: http://perso.telecom-paristech.fr/~boubek/papers/PhongTessellation/PhongTessellation.pdf
+        vec3 projectedPoints[3];
+        for (int i = 0; i < 3; ++i)
+        {
+            projectedPoints[i] = p - ((p-hs_out_Position[i])*hs_out_Normal[i])*hs_out_Normal[i];
+        }
+
+        vec3 q0 = gl_TessCoord.x * projectedPoints[0];
+        vec3 q1 = gl_TessCoord.y * projectedPoints[1];
+        vec3 q2 = gl_TessCoord.z * projectedPoints[2];
+        vec3 q = q0 + q1 + q2;
+
 	// TODO: Lineare Interpolation zwischen p und q anhand von alpha ergibt den fertigen Punkt x.
-        vec3 x = p;
+        vec3 x = (1-alpha)*p + alpha*q;
 
 	// TODO: Baryzentrische Interpolation der Texturkoordinaten und Normalen.
         vec3 n0 = gl_TessCoord.x * hs_out_Normal[0];
