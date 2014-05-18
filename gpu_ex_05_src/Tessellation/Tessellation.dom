@@ -1,0 +1,48 @@
+
+#version 400
+// TODO: Topology, spacing sceme und winding order (counter clock wise) angeben! (layout modifier)
+// spacing schemes: fractional_even_spacing, fractional_odd_spacing, equal_spacing -> sucht euch was aus :)
+layout (triangles, equal_spacing, ccw) in;
+
+// inputs from the hull shader.
+in vec3 hs_out_Position[];
+in vec3 hs_out_Normal[];
+in vec2 hs_out_TexCoord[];
+
+// output of the domain shader.
+out vec3 ds_out_Normal;
+out vec2 ds_out_TexCoord;
+
+layout(std140) uniform GlobalMatrices
+{
+	mat4 Projection;
+	mat4 View;
+};
+
+layout(std140) uniform TessFactors
+{
+	float insideTess;
+	float outsideTess;
+	float alpha;
+};
+
+void main()
+{
+	// TODO: Baryzentrische Interpolation zwischen den drei Eckpunkten durchfuehren, um den Punkt p im Dreieck zu bestimmen.
+        vec3 p0 = gl_TessCoord.x * hs_out_Position[0]; // x is one corner
+        vec3 p1 = gl_TessCoord.y * hs_out_Position[1]; // y is the 2nd corner
+        vec3 p2 = gl_TessCoord.z * hs_out_Position[2]; // z is the 3rd corner (ignore when using quads)
+        vec3 p = p0 + p1 + p2;
+
+
+	// TODO: Projektion des Punktes p in die Tangentialebenen der Eckpunkte, wiederum baryzentrische Interpolation zwischen den projizierten Punkten ergibt Punkt q.
+	
+	// TODO: Lineare Interpolation zwischen p und q anhand von alpha ergibt den fertigen Punkt x.
+    
+	// TODO: Baryzentrische Interpolation der Texturkoordinaten und Normalen.
+	
+	// TODO: Normale in den View Space transformieren.
+	
+	// TODO: Punkt x in den Clipping Space transformieren und rausreichen.
+        gl_Position = Projection * View * vec4 (p, 1.0);
+}
