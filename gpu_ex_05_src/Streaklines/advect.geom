@@ -14,10 +14,10 @@ layout(std140) uniform Params {
 	float time;     // Derzeitige Zeit (schreitet in jedem Frame voran)
 };
 
-// Abstands-Schwellenwert, ab dem zwischen zwei aufeinander folgenden Partikeln ein neues Partikel eingefügt werden soll.
+// Abstands-Schwellenwert, ab dem zwischen zwei aufeinander folgenden Partikeln ein neues Partikel eingefuegt werden soll.
 const float refinementThreshold = 0.015;
 
-// 3D Textur, die das Vektorfeld enthält
+// 3D Textur, die das Vektorfeld enthaelt
 uniform sampler3D texFlow;
 
 // ----------------------------------------------------------------
@@ -87,7 +87,7 @@ void main(void)
 	// advect particle
 	// --------------------------------------------
 
-	// Derzeitigen Zustand übernehmen (auf Ausgabevariablen schreiben)
+	// Derzeitigen Zustand uebernehmen (auf Ausgabevariablen schreiben)
 	gs_out_Position = vs_out[0].PositionA;
 	gs_out_State = vs_out[0].StateA;
 
@@ -107,9 +107,9 @@ void main(void)
 		// --------------------------------------------
 		// Refinement
 		// --------------------------------------------
-		// TODO: Falls nicht Tail, time<1 und Distance zwischen diesem und nachfolgendem Partikel größer ist als refinementThreshold
+		// TODO: Falls nicht Tail, time<1 und Distance zwischen diesem und nachfolgendem Partikel groesser ist als refinementThreshold
 		{
-			// TODO: Neues Body-Partikel in der Mitte (zwischen aktuellem und nachfolgendem Partikel) einfügen
+			// TODO: Neues Body-Partikel in der Mitte (zwischen aktuellem und nachfolgendem Partikel) einfuegen
 		}
 
 	}
