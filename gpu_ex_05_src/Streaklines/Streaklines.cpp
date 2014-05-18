@@ -145,10 +145,12 @@ void display(void)
 	glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, Query); 
 
 	// TODO: Binden des Feedback Objekts (feedback_streamTo)
-	
+    glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,feedback_streamTo);
+
 	// TODO: Beginne Feedback Recording von GL_POINTS
-	
+    glBeginTransformFeedback(GL_POINTS);
 	// TODO: Binden des VAO von dem gelesen werden soll
+    glBindVertexArray(vao_readFrom);
 	
 	// In der ersten Iteration glDrawArrays verwenden, spaeter den Feedback Draw Call nehmen.
 	if( bFirst ) {
@@ -157,9 +159,11 @@ void display(void)
 	else {
 		// TODO: Den Transform Feedback Draw-Call nehmen, da dieser bereits weiss, wieviele Vertices sich derzeit im Stream befinden.
 		// D.h. wir muessen diese Zahl nicht per Query zuruecklesen, um den Draw-Call abzusetzen.
+        glDrawTransformFeedback(GL_POINTS,feedback_readFrom);
 	}	
 
 	// TODO: Beenden des Feedback Recording
+    glEndTransformFeedback();
 
 	// End query
 	glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN); 
@@ -391,11 +395,19 @@ void initVertexArray()
 void initFeedback()
 {
 	// TODO: Buffer Objekt generieren und in Variable feedback_readFrom speichern.
+    glGenTransformFeedbacks(1,&feedback_readFrom);
 	// TODO: Buffer Objekt binden
+    glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,feedback_readFrom);
 	// TODO: vbo_readFrom mit dem Buffer Objekt verknuepfen (wenn man das Transform Feedback Objekt bindet, wird kuenftig in dieses VBO geschrieben)
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,vbo_readFrom);
 	// TODO: Buffer Objekt unbinden
-	
+    glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,0);
+
 	// TODO: Das selbe nochmal fuer feedback_streamTo
+    glGenTransformFeedbacks(1,&feedback_streamTo);
+    glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,feedback_streamTo);
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,vbo_streamTo);
+    glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,0);
 }
 
 void initParams()

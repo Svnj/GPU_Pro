@@ -92,25 +92,41 @@ void main(void)
 	gs_out_State = vs_out[0].StateA;
 
 	// TODO: Wenn nicht "Head" dann advektieren.
+        if(gs_out_State != HEAD)
+        {
+            gs_out_Position = advect(gs_out_Position);
+        }
 
 	// TODO: Ist das Partikel im erlaubten Domain? (Weder Domain verlassen, noch im Zylinder)
+	if(inGrid(gs_out_Position) && !inObstacle(gs_out_Position))
 	{
-		// Transformieren des Partikels auf den Viewport
-		gl_Position = Projection * vec4(gs_out_Position, 0,1);
+            // Transformieren des Partikels auf den Viewport
+            gl_Position = Projection * vec4(gs_out_Position, 0,1);
 
-		// TODO: Wenn der Nachfolger das Domain verlassen hat, wird dieses Partikel zum neuen "Tail".
-		
-		// Emitieren des Partikels
-		EmitVertex();
-		EndPrimitive();
-	
-		// --------------------------------------------
-		// Refinement
-		// --------------------------------------------
-		// TODO: Falls nicht Tail, time<1 und Distance zwischen diesem und nachfolgendem Partikel groesser ist als refinementThreshold
-		{
-			// TODO: Neues Body-Partikel in der Mitte (zwischen aktuellem und nachfolgendem Partikel) einfuegen
-		}
+            // TODO: Wenn der Nachfolger das Domain verlassen hat, wird dieses Partikel zum neuen "Tail".
+            vec2 successorPosition = vs_out[0].PositionB;
+            if(!inGrid(successorPosition) || inObstacle(successorPosition))
+            {
+                gs_out_State = TAIL;
+            }
+
+            // Emitieren des Partikels
+            EmitVertex();
+            EndPrimitive();
+
+            // --------------------------------------------
+            // Refinement
+            // --------------------------------------------
+            // TODO: Falls nicht Tail, time<1 und Distance zwischen diesem und nachfolgendem Partikel groesser ist als refinementThreshold
+            if(gs_out_State != TAIL && time<1 &&  distance(vs_out[0].PositionA,vs_out[0].PositionB) > refinementThreshold)
+            {
+                // TODO: Neues Body-Partikel in der Mitte (zwischen aktuellem und nachfolgendem Partikel) einfuegen
+                gs_out_Position = 0.5f*vs_out[0].PositionA + 0.5f *vs_out[0].PositionB;
+                gs_out_State = BODY;
+                gl_Position = Projection * vec4(gs_out_Position, 0,1);
+                EmitVertex();
+                EndPrimitive();
+            }
 
 	}
 }
