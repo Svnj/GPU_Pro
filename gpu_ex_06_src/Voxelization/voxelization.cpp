@@ -1,7 +1,5 @@
 // ******* GPU Voxelization ********
 
-#include <windows.h>
-
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 
@@ -25,6 +23,9 @@ using namespace std;
 
 #define ROTATE 1
 #define MOVE 2
+
+// toggeln für Wechsel Boundary <-> Solid
+#define SOLID true
 
 float center[3] = {0.0f, 0.0f, 0.0f}; 
 GLfloat viewPosition[4] = {0.0, 0.0, 3.0, 1.0};  
@@ -215,7 +216,11 @@ void calcViewerCamera(float theta, float phi, float r)
 // Alle Shader einladen & uniform Variablen setzen
 void initGLSL()
 {
-	loadShaderProgram(shaderProgramVoxelization, vertexShaderVoxelization, "voxelization.vert", fragmentShaderVoxelization, "voxelization.frag");
+	if(!SOLID)
+		loadShaderProgram(shaderProgramVoxelization, vertexShaderVoxelization, "voxelization.vert", fragmentShaderVoxelization, "voxelization.frag");
+	else
+		loadShaderProgram(shaderProgramVoxelization, vertexShaderVoxelization, "voxelization.vert", fragmentShaderVoxelization, "solidVoxelization.frag");
+
 	glUseProgram(shaderProgramVoxelization);
 }
 
@@ -226,13 +231,79 @@ void drawVoxel(float x, float y, float z)
 	float sizeY = 1.0f/(float)(VOXEL_HEIGHT);
 	float sizeZ = 1.0f/128.0f;
 
+	float xn = -sizeX/2;
+	float xp = sizeX/2;
+	float yn = -sizeY/2;
+	float yp = sizeY/2;
+	float zn = -sizeZ/2;
+	float zp = sizeZ/2;
+
 	// TODO: Rendern Sie einen Cube mit dem Zentrum an der Position (x,y,z) und der Ausdehnung sizeX x sizeY x sizeZ.
 	// Um die Visualisierung deutlicher zu machen, sollen die Eckpunkte einer jeden Seitenwand unterschiedliche Farben haben.
+	glPushMatrix();
+	glTranslatef(x, y, z);
+	glBegin(GL_QUADS);
+
+	glColor3f(1,1,1);
+    glVertex3f(xn,yn,zp); // A
+	glColor3f(0.8f,0.8f,0.8f);
+    glVertex3f(xp,yn,zp); // B
+	glColor3f(0.6f,0.6f,0.6f);
+    glVertex3f(xp,yp,zp); // C
+	glColor3f(0.4f,0.4f,0.4f);
+    glVertex3f(xn,yp,zp); // D
+ 
+	glColor3f(1,1,1);
+    glVertex3f(xp,yn,zn); // E
+	glColor3f(0.8f,0.8f,0.8f);
+    glVertex3f(xn,yn,zn); // H
+	glColor3f(0.6f,0.6f,0.6f);
+    glVertex3f(xn,yp,zn); // G
+	glColor3f(0.4f,0.4f,0.4f);
+    glVertex3f(xp,yp,zn); // F
+ 
+	glColor3f(1,1,1);
+    glVertex3f(xp,yn,zp); // B
+	glColor3f(0.8f,0.8f,0.8f);
+    glVertex3f(xp,yn,zn); // E
+	glColor3f(0.6f,0.6f,0.6f);
+    glVertex3f(xp,yp,zn); // F
+	glColor3f(0.4f,0.4f,0.4f);
+    glVertex3f(xp,yp,zp); // C
+ 
+	glColor3f(1,1,1);
+    glVertex3f(xn,yn,zn); // H
+	glColor3f(0.8f,0.8f,0.8f);
+    glVertex3f(xn,yn,zp); // A
+	glColor3f(0.6f,0.6f,0.6f);
+    glVertex3f(xn,yp,zp); // D
+	glColor3f(0.4f,0.4f,0.4f);
+    glVertex3f(xn,yp,zn); // G
+	
+	glColor3f(1,1,1);
+    glVertex3f(xn,yn,zp); // A
+	glColor3f(0.8f,0.8f,0.8f);
+    glVertex3f(xn,yn,zn); // H
+	glColor3f(0.6f,0.6f,0.6f);
+    glVertex3f(xp,yn,zn); // E
+	glColor3f(0.4f,0.4f,0.4f);
+    glVertex3f(xp,yn,zp); // B
+	
+	glColor3f(1,1,1);
+    glVertex3f(xn,yp,zp); // D
+	glColor3f(0.8f,0.8f,0.8f);
+    glVertex3f(xp,yp,zp); // C
+	glColor3f(0.6f,0.6f,0.6f);
+    glVertex3f(xp,yp,zn); // F
+	glColor3f(0.4f,0.4f,0.4f);
+    glVertex3f(xn,yp,zn); // G
+	
+	glEnd();
+	glPopMatrix();
 }
 
 void drawVoxelModel()
 {
-	glBegin(GL_QUADS);
 
 	int i = 0;
 	for (int y = 0 ; y < VOXEL_HEIGHT ; y++) {
@@ -256,7 +327,6 @@ void drawVoxelModel()
 			}
 		}
 	}
-	glEnd();
 }
 
 
@@ -268,13 +338,20 @@ void display()
 	// ********** voxelize teapot into integer texture ************
 	
 	// TODO: FBO binden, in das gerendert werden soll. Clearen Sie das FBO und binden Sie den Voxelisierungs-Shader.
-	
-	// TODO: Viewport auf Auflösung der Voxel-Textur setzen.	
+	glBindFramebuffer(GL_FRAMEBUFFER, voxelizationFB);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glUseProgram(shaderProgramVoxelization);
+
+	// TODO: Viewport auf Auflösung der Voxel-Textur setzen.
+	glViewport(0, 0, VOXEL_WIDTH, VOXEL_HEIGHT);
 
 	// TODO: Tiefentest deaktivieren.
-	
+	glDisable(GL_DEPTH_TEST);
+
 	// TODO: Logik-Operation aktivieren. Anstatt den Farbwert in das Target zu schreiben, 
 	// werden die Komponenten des Pixels als UINTs aufgefasst und mit dem Pixel im FBO mit OR verknüpft ("reingeodert"...)	
+	glEnable(GL_COLOR_LOGIC_OP);
+	glLogicOp(GL_XOR);
 
 	// Projektionsmatrix setzen
 	glMatrixMode(GL_PROJECTION);
@@ -289,18 +366,33 @@ void display()
 	glRotatef(angle, 0.0f, 1.0f, 0.0f);
 	angle += 0.1f;
 
-	// Kanne zeichnen
-	glutSolidTeapot(0.7);
-	
+	if(!SOLID)
+		// Kanne zeichnen
+		glutSolidTeapot(0.7);
+	else
+		// Solid -> Torus
+		glutSolidTorus(0.2,0.6,50,50);
+
+	glReadPixels(0, 0, VOXEL_WIDTH, VOXEL_HEIGHT, GL_RGBA_INTEGER, GL_UNSIGNED_INT, pixels);
+
 	// TODO: Rendern in FBO beenden (Backbuffer wieder aktiv) und Fixed-Function Pipeline aktivieren.
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(0);
 
 	// *************** read voxel texture for visualization *************
 	// TODO: Texturdaten der Voxelisierungs-Textur auslesen.
+	//glReadPixels(0, 0, VOXEL_WIDTH, VOXEL_HEIGHT, GL_RGBA_INTEGER, GL_UNSIGNED_INT, pixels);
+	// siehe oben
 
 	// **************** draw the voxel model ****************
 	// TODO: Viewport auf Bildschirmauflösung setzen und Backbuffer clearen.
-	
+	glViewport(0, 0, PIC_WIDTH, PIC_HEIGHT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	// TODO: Tiefentest an, Beleuchtung und Logik-Operationen aus.
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_COLOR_LOGIC_OP);
 	
 	// Perspektivische Projektionsmatrix
 	glMatrixMode(GL_PROJECTION);
