@@ -1,7 +1,5 @@
 // ******* GPU Histogram ********
 
-#include <windows.h>
-
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 
@@ -276,7 +274,10 @@ void display()
 	// Teekanne rendern.
 	drawScene();
 	
-	// ********* Histogrammdaten erzeugen, indem für jedes Pixel ein Vertex gerendert wird. Der Vertex Shader liest den Farbwert aus und berechnet seinen Position, abhängig von der Helligkeit des gelesenen Pixels. **********
+	// ********* Histogrammdaten erzeugen, indem fuer jedes Pixel ein Vertex gerendert wird. Der Vertex Shader liest den Farbwert aus und berechnet seinen Position, abhaengig von der Helligkeit des gelesenen Pixels. **********
+    // TODO: bind and clear Framebuffer
+	glBindFramebuffer (GL_FRAMEBUFFER, createHistogramFB);      // activate fbo                 
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
 	// Orthografische Projektion nutzen, damit die Vertices auch korrekt auf die Pixel fallen.
 	glMatrixMode(GL_PROJECTION);
@@ -287,23 +288,32 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	// TODO: Additives Blending aktivieren (mit jedem ankommenden Pixel wird der Counter um 1 erhöht)
-	glEnable( GL_BLEND);
+	// TODO: Additives Blending aktivieren (mit jedem ankommenden Pixel wird der Counter um 1 erhoeht)
 	glBlendFunc(GL_ONE, GL_ONE);
+	glEnable(GL_BLEND);
 	
 	// TODO: Tiefentest und Beleuchtung abschalten
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_LIGHTING);
 	
-	// TODO: Histogram-Shader für jedes Pixel des Bildes ausführen.	
-	glUseProgram(vertexShaderCreateHistogram);
+	// TODO: Histogram-Shader fuer jedes Pixel des Bildes ausfuehren.
+	glUseProgram(shaderProgramCreateHistogram);
+	glBegin(GL_POINTS);
+		for(int y = 0; y < PIC_WIDTH * PIC_HEIGHT; y++)
+            glVertex3f(
+                    y % PIC_WIDTH,
+                    (float)((int)(y / PIC_WIDTH)),
+                    1.0f
+                    );
+	glEnd();
+	glUseProgram(0);
 
 	// Histogramm-Daten von VRAM zu RAM streamen (in das Array hPixels)
 	glReadPixels(0, 0, 256, 1, GL_RGB, GL_FLOAT, hPixels);
 
-	// TODO: Blending abschalten	
-	glDisable( GL_BLEND);
-	
+	// TODO: Blending abschalten
+	glDisable(GL_BLEND);
+
 	// ********* Teekanne in Backbuffer rendern **********
 
 	// Rendern in das FBO beenden. Fortan wird wieder in den Backbuffer gerendert.
@@ -315,14 +325,33 @@ void display()
 
 	// ********* Histogramm zeichnen **********
 
-	// TODO: Rendern Sie die Liniensegmente. Sie können ModelView- und Projection-Matrix auf 
+	// TODO: Render Sie die Liniensegmente. Sie koennen ModelView- und Projection-Matrix auf 
 	// die Einheitsmatrix setzen und die Vertices direkt im Clipping-Space an die GPU schicken
 	// oder alternativ eine Projektionsmatrix bauen, die es Ihnen erlaubt, die Positionen in
 	// Bildschirmkoordinaten (0..PIC_WIDTH-1, 0..PIC_HEIGHT-1) anzugeben.
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
+    glOrtho(0, PIC_WIDTH, 0, PIC_HEIGHT, 0, 1);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+    float maxValue = 0.0f;
+    for(int j = 0; j < 256*3; j++)
+    {
+        if(hPixels[j] > maxValue)
+        {
+            maxValue = hPixels[j];
+        }
+    }
+	
+	glBegin(GL_LINES);
+	for(int i = 0; i < 255; i++)
+	{
+		glColor3f(1, 1, 1);
+		glVertex3f((float)i, 0.0f, 0.0f);
+        glVertex3f((float)i, (hPixels[i*3] / maxValue) * (float)500, 0.0f);
+	}
+	glEnd();
 
 	// Frame ist beendet, Buffer swappen.
 	glutSwapBuffers();
@@ -412,6 +441,3 @@ int main(int argc, char** argv)
                 
     return 0;
 }
-
-
-
