@@ -64,8 +64,8 @@ __global__ void blurKernelGlobal( float *sourcePtr, float *targetPtr)
 
 	float value = 0.0f;
 
-	int upperLeftFilterPosX = X - blurRadius/2;
-	int upperLeftFilterPosY = Y - blurRadius/2;
+	int upperLeftFilterPosX = X - blurRadius;
+	int upperLeftFilterPosY = Y - blurRadius;
 
 	for(int i = upperLeftFilterPosX; i<upperLeftFilterPosX+filterWidth; ++i) 
 	{
@@ -105,7 +105,6 @@ __global__ void blurKernelTexture(float *targetPtr)
 		{
 			if( i < DIM && j < DIM && i >= 0 && j >= 0)
 			{
-				//int sampleIndex = i + j * blockDim.x * gridDim.x;
 				value += tex2D(blurDevTex,j,i);				
 			}
 		}
@@ -118,74 +117,6 @@ __global__ void blurKernelTexture(float *targetPtr)
 
 __global__ void blurKernelShared(float *sourcePtr, float *targetPtr) 
 {
-	// Der Ansatz BlockSize = KernelSize ist _viel_ zu langsam/gibt Crash bei halbwegs großem Kernel
-	// (Lesen und Schreiben funktioniert im Prinzip aber, Rest verwerfen...)
-	// !!! TODO: Was finden, das funktioniert... ######################################################################################################################
-	// ggf. hilft das: http://developer.download.nvidia.com/assets/cuda/files/convolutionSeparable.pdf
-
-	// filterwidth = 51 - time ??ms
-	int filterWidth = blurRadius*2+1;
-
-	int gridDimX = gridDim.x;
-	int blockDimX = blockDim.x;
-	int blockDimY = blockDim.y;
-	int threadX = threadIdx.x;
-	int threadY = threadIdx.y;
-	int blockX = blockIdx.x;
-	int blockY = blockIdx.y;
-	
-    // TODO: Index berechnen
-	// index of shared memory to write into
-	int localIndex = threadX + threadY * blockDimX;
-
-	// index of pixel to read from (-1 if invalid)
-	int index = -1;
-	int X = threadIdx.x + blockIdx.x * blockDim.x;
-	int Y = threadIdx.y + blockIdx.y * blockDim.y;
-	index = X + Y * blockDim.x * gridDim.x;
-	
-	//int X = 0;
-	//int Y = 0;
-
-	// thread may only write if it is at the center of the block
-	bool mayWrite = (localIndex == blockDimX*blockDimY/2);
-
-	// allocate shared memory
-	__shared__ float cache[400];
-
-	// write into shared memory if there is a value to read from (one write per thread)
-	if( index >= 0 )
-		cache[localIndex] = sourcePtr[index];
-	else
-		cache[localIndex] = 0;
-
-	// make sure all threads finished writing
-	__syncthreads();
-
-	// filter (only some threads are supposed to do this)
-	if( mayWrite )
-	{
-		float value = 0.0f;
-
-		for(int i = 0; i<blockDimY; ++i) 
-		for(int j = 0; j<blockDimX; ++j) 
-		{
-			int sampleIndex = i + j * blockDimX;
-			value += cache[sampleIndex];
-		}
-
-		value /= filterWidth*filterWidth;
-		
-		// index of pixel to write into
-		int destIndex =  blockX + blockY * gridDimX;
-
-		// write result
-		targetPtr[destIndex] = value;
-	}
-}
-
-__global__ void blurKernelSharedTobi(float *sourcePtr, float *targetPtr) 
-{
 	// calculate the position in source Image
 	// therefore use blockSize not BlockDim.x
 	int positionInImageX = blockIdx.x * blockSize + threadIdx.x - blurRadius;
@@ -193,8 +124,13 @@ __global__ void blurKernelSharedTobi(float *sourcePtr, float *targetPtr)
 
 	__shared__ float cache[effectiveBlockSize * effectiveBlockSize];
 
-	// fill the with values from gloaal memory
-	cache[threadIdx.x + threadIdx.y * effectiveBlockSize] = sourcePtr[positionInImageX + positionInImageY * DIM];
+	// fill the with values from global memory
+	int getterIndex = positionInImageX + positionInImageY * DIM;
+
+	if(0 <= positionInImageX && positionInImageX < DIM && 0 <= positionInImageY && positionInImageY < DIM)
+		cache[threadIdx.x + threadIdx.y * effectiveBlockSize] = sourcePtr[getterIndex];
+	else
+		cache[threadIdx.x + threadIdx.y * effectiveBlockSize] = 0.0f;
 
 	// synchronise all threads
 	__syncthreads();
@@ -231,14 +167,13 @@ void display(void)
 	animateKernel<<<grid,block>>>(sourceDevPtr, transDevPtr, timer);
 
 	// TODO: Zeitmessung starten (see cudaEventCreate, cudaEventRecord)
-		cudaEvent_t start, stop;
+	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start,0);
 
 	// TODO: Kernel mit Blur-Filter ausführen.
 	int kernelSize = blurRadius*2+1;
-	// !!!!!! TODO: Richtige Kernelgroesse fuer Shared-Mem-Variante waehlen ##################################################################################################
 	dim3 sharedGrid(DIM/blockSize, DIM/blockSize);
 	dim3 sharedBlock(effectiveBlockSize, effectiveBlockSize);
 
@@ -247,7 +182,7 @@ void display(void)
 		case 0: animateKernel<<<grid,block>>>(transDevPtr, blurDevPtr, timer); break;
 		case 1: blurKernelGlobal<<<grid,block>>>(transDevPtr, blurDevPtr); break;
 		case 2: blurKernelTexture<<<grid,block>>>(blurDevPtr); break;
-		case 3: blurKernelSharedTobi<<<sharedGrid,sharedBlock>>>(transDevPtr, blurDevPtr); break;
+		case 3: blurKernelShared<<<sharedGrid,sharedBlock>>>(transDevPtr, blurDevPtr); break;
 	}
 	
 	// TODO: Zeitmessung stoppen und fps ausgeben (see cudaEventSynchronize, cudaEventElapsedTime, cudaEventDestroy)
@@ -255,7 +190,7 @@ void display(void)
 	cudaEventSynchronize(stop);
 	float elapsedTime;
 	cudaEventElapsedTime(&elapsedTime, start, stop);
-	printf("Time to generate: %3.1f ms\r", elapsedTime);
+	printf("Time to generate: %3.1f ms \r", elapsedTime);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 	
@@ -290,7 +225,7 @@ int main(int argc, char **argv)
 	glutIdleFunc(display);
 	glutDisplayFunc(display);
 
-	// mit Schachbrettmuster f�llen
+	// mit Schachbrettmuster füllen
 	for (int i = 0 ; i < DIM*DIM ; i++) {
 
 		int x = (i % DIM) / (DIM/8);
@@ -306,7 +241,7 @@ int main(int argc, char **argv)
 	CUDA_SAFE_CALL( cudaMalloc( (void**)&sourceDevPtr, DIM*DIM*4 ) );
     CUDA_SAFE_CALL( cudaMemcpy( sourceDevPtr, sourceColors, DIM*DIM*4, cudaMemcpyHostToDevice ) );
 
-	// TODO: Weiteren Speicher auf der GPU f�r das Bild nach der Transformation und nach dem Blur allokieren.
+	// TODO: Weiteren Speicher auf der GPU für das Bild nach der Transformation und nach dem Blur allokieren.
 	CUDA_SAFE_CALL( cudaMalloc( (void**)&transDevPtr, DIM*DIM*4 ) );
 
 	cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
