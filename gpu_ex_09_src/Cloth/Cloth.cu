@@ -17,12 +17,15 @@ __device__ float3 computeImpact(float3 me, float3 other, float stepsize, float h
 __device__ float3 sphereCollision(float3 p, float h)
 {
 	// TODO: Testen, ob Punkt im inneren der Kugel ist. Wenn ja, dann einen Impuls berechnen, der sie wieder heraus bewegt.
-	// TODO: this does not _quite_ work yet ###############################################################################################################################
-	if(length(p) < SPHERE_RADIUS)
+	float3 impulse = make_float3(0,0,0);
+	float dist = length(p);
+	
+	if(dist < (SPHERE_RADIUS + SKIN_WIDTH))
 	{
-		p = normalize(p)*(SPHERE_RADIUS + SKIN_WIDTH);
+		float3 s = p * (SPHERE_RADIUS + SKIN_WIDTH)*2;
+		impulse = s/h;
 	}
-	return p;
+	return impulse;
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -44,17 +47,26 @@ __global__ void computeImpacts(float3* oldPos, float3* impacts, float stepsize, 
 	int indexN3 = (X < blockDim.x * gridDim.x-1)? Y + (X+1) * line : -1;
 
 	// TODO: Kollisionsbehandlung mit Kugel durchfuehren.
-	oldPos[index] = sphereCollision(oldPos[index], h);
+	//oldPos[index] = sphereCollision(oldPos[index], h);
 
 	// TODO: Mit jedem Nachbar besteht ein Constraint. Dementsprechend fuer jeden Nachbar 
 	//		 computeImpact aufrufen und die Ergebnisse aufsummieren.
-	float3 impact = make_float3(0,0,0);
+	float3 impact = sphereCollision(oldPos[index], h);
 	float3 zeroVec = make_float3(0,0,0);
 	// neighbors also mustn't enter the sphere
-	impact += (indexN0 == -1)? zeroVec : computeImpact(oldPos[index], sphereCollision(oldPos[indexN0], h), stepsize, h);
+	/*impact += (indexN0 == -1)? zeroVec : computeImpact(oldPos[index], sphereCollision(oldPos[indexN0], h), stepsize, h);
 	impact += (indexN1 == -1)? zeroVec : computeImpact(oldPos[index], sphereCollision(oldPos[indexN1], h), stepsize, h);
 	impact += (indexN2 == -1)? zeroVec : computeImpact(oldPos[index], sphereCollision(oldPos[indexN2], h), stepsize, h);
 	impact += (indexN3 == -1)? zeroVec : computeImpact(oldPos[index], sphereCollision(oldPos[indexN3], h), stepsize, h);
+	*/
+	if(indexN0 != -1)
+		impact += computeImpact(oldPos[index], oldPos[indexN0],  stepsize, h);
+	if(indexN1 != -1)
+		impact += computeImpact(oldPos[index], oldPos[indexN1],  stepsize, h);
+	if(indexN2 != -1)
+		impact += computeImpact(oldPos[index], oldPos[indexN2],  stepsize, h);
+	if(indexN3 != -1)
+		impact += computeImpact(oldPos[index], oldPos[indexN3],  stepsize, h);
 	// TODO: Die Summe der Impulse auf "impacts" des eigenen Gitterpunkts addieren.	
 	impacts[index] += impact;
 }
@@ -109,7 +121,8 @@ __global__ void test( float3* newPos, float3* oldPos, float h)
 	if( Y == blockDim.y*gridDim.y-1)
 		return;
 
-	newPos[index] = oldPos[index] + make_float3(0, -h, 0);
+	newPos[index] = oldPos[index] + make_float3(0, -h/20, 0);
+	newPos[index] = sphereCollision(newPos[index], h);
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -124,7 +137,7 @@ void updateCloth(	float3* newPos, float3* oldPos, float3* impacts, float3* veloc
 
 	// Updating constraints is an iterative process.
 	// The more iterations we apply, the stiffer the cloth become.
-	for (int i=0; i<30; ++i)
+	for (int i=0; i<10; ++i)
 	{
 		// -----------------------------
 		// TODO: previewSteps Kernel aufrufen (Vorhersagen, wo die Gitterpunkte mit den aktuellen Impulsen landen wuerden.)
