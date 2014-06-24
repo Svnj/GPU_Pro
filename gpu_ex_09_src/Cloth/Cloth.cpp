@@ -103,7 +103,7 @@ void ClothSim::update(GLfloat deltaTime)
 
 	// Launch update
 	float stepSize = 0.5f; // steers how quickly the iterative refinement converges	
-	updateCloth((float3*)newPos, (float3*)oldPos, (float3*)devPtrImpact, (float3*)devPtrVelocity, deltaTime, stepSize);
+	updateCloth((float3*)newPos, (float3*)oldPos, (float3*)devPtrImpact, (float3*)devPtrVelocity, deltaTime/2, stepSize);
 
 	// TODO: Unmap cudaNormal #############################################################################################################################################
 	// TODO: Unmap cudaPos (Hinweis: cudaGraphicsUnmapResources)	
