@@ -83,11 +83,12 @@ __global__ void previewSteps(	float3* newPos, float3* oldPos, float3* impacts, f
     // Index berechnen	
 	int X = threadIdx.x + blockIdx.x * blockDim.x;
 	int Y = threadIdx.y + blockIdx.y * blockDim.y;
-	index = Y + X * blockDim.y * gridDim.y;
+	//index = Y + X * blockDim.y * gridDim.y;
+	index = Y + X * RESOLUTION_Y;
 
 	// TODO: don't check this here but find a proper way to not call it at all? ###########################################################################################
-	if( Y == blockDim.y*gridDim.y-1)
-		return;
+	//if( Y == blockDim.y*gridDim.y-1)
+	//	return;
 
 	newPos[index] = oldPos[index] + (velocity[index] + impacts[index] * h) * h;
 }
@@ -142,7 +143,8 @@ void updateCloth(	float3* newPos, float3* oldPos, float3* impacts, float3* veloc
 		// -----------------------------
 		// TODO: previewSteps Kernel aufrufen (Vorhersagen, wo die Gitterpunkte mit den aktuellen Impulsen landen wuerden.)
 		// newpos = oldpos + (velocity + impacts * h) * h
-		previewSteps<<<blocks,1>>>(newPos, oldPos, impacts, velocity, h);
+		//previewSteps<<<blocks,1>>>(newPos, oldPos, impacts, velocity, h);
+		previewSteps<<<dim3(RESOLUTION_X,RESOLUTION_Y-1, 1),1>>>(newPos, oldPos, impacts, velocity, h);
 		
 		// -----------------------------
 		// TODO: computeImpacts Kernel aufrufen (Die Impulse neu berechnen, sodass die Constraints besser eingehalten werden.)
