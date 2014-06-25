@@ -320,11 +320,14 @@ void initGL()
 			glBindBuffer(GL_ARRAY_BUFFER, vboTexCoord);
 				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);		
 			// TODO Normalen-VBO von clothsim getten und an das VAO binden.
-
+				glBindBuffer(GL_ARRAY_BUFFER, clothsim->getVBONormal());
+				glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 			glEnableVertexAttribArray(0);
 			glEnableVertexAttribArray(1);		
 			// TODO Vertex Attribut für die Normalen enablen.
+			glEnableVertexAttribArray(2);
 		glBindVertexArray(0);
 	}
 }

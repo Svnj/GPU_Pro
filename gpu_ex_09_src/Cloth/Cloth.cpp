@@ -8,7 +8,7 @@
 #include <fstream>
 
 
-void updateCloth(	float3* newPos, float3* oldPos, float3* impacts, float3* velocity,					
+void updateCloth(	float3* newPos, float3* oldPos, float3* normals, float3* impacts, float3* velocity,					
 					float deltaTime, float stepsize);
 
 ClothSim::ClothSim() : ping(0)
@@ -57,13 +57,13 @@ ClothSim::ClothSim() : ping(0)
 	cudaGraphicsGLRegisterBuffer(&cudaPos[ping],vboPos[ping],cudaGraphicsMapFlagsNone);
 
 	// TODO VBO vboNormal erzeugen und mit cudaNormal verknuepfen. Das VBO braucht keine initialen Daten (NULL uebergeben). ###############################################
-	//glGenBuffers(1,&vboNormal);
-	//glBindBuffer(GL_PIXEL_UNPACK_BUFFER,vboNormal);
-	//glBufferData(GL_PIXEL_UNPACK_BUFFER,memSize,NULL,GL_DYNAMIC_DRAW);
+	glGenBuffers(1,&vboNormal);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER,vboNormal);
+	glBufferData(GL_PIXEL_UNPACK_BUFFER,memSize,NULL,GL_DYNAMIC_DRAW);
 
-	//glBindBuffer(GL_PIXEL_UNPACK_BUFFER,0);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER,0);
 
-	//cudaGraphicsGLRegisterBuffer(&cudaNormal,vboNormal,cudaGraphicsMapFlagsNone);
+	cudaGraphicsGLRegisterBuffer(&cudaNormal,vboNormal,cudaGraphicsMapFlagsNone);
 	
 	delete[] m_hPos;
 }
@@ -73,7 +73,9 @@ ClothSim::~ClothSim()
     CUDA_SAFE_CALL(cudaGraphicsUnregisterResource(cudaPos[0]));
     CUDA_SAFE_CALL(cudaGraphicsUnregisterResource(cudaPos[1]));
 	// TODO cudaNormal freigeben #############################################################################################################################################
+	CUDA_SAFE_CALL(cudaGraphicsUnregisterResource(cudaNormal));
     glDeleteBuffers(2, (const GLuint*)vboPos);
+	glDeleteBuffers(1, (const GLuint*)vboNormal);
 	// TODO vboNormal freigeben ##############################################################################################################################################
 	CUDA_SAFE_CALL( cudaFree( devPtrImpact ) ); 
 	CUDA_SAFE_CALL( cudaFree( devPtrVelocity ) ); 
@@ -92,7 +94,8 @@ void ClothSim::update(GLfloat deltaTime)
 	//cudaGraphicsMapResources( 1, &cudaPos[1-ping], NULL );
 
 	// TODO: Map cudaNormal ###############################################################################################################################################
-	    
+	cudaGraphicsMapResources( 1, &cudaNormal, NULL );
+
 	// TODO: Pointer auf die Daten von cudaPos[ping] und cudaPos[1-ping] beschaffen. (Hinweis: cudaGraphicsResourceGetMappedPointer)
 	unsigned int memSize = sizeof(float) * 3 * RESOLUTION_X*RESOLUTION_Y;
 
@@ -100,12 +103,14 @@ void ClothSim::update(GLfloat deltaTime)
 	cudaGraphicsResourceGetMappedPointer( (void**)&newPos, &memSize, cudaPos[ping]);
 
 	// TODO: Pointer auf die Daten von cudaNormal beschaffen. #############################################################################################################
+	cudaGraphicsResourceGetMappedPointer( (void**)&normals, &memSize, cudaNormal);
 
 	// Launch update
 	float stepSize = 0.5f; // steers how quickly the iterative refinement converges	
-	updateCloth((float3*)newPos, (float3*)oldPos, (float3*)devPtrImpact, (float3*)devPtrVelocity, deltaTime, stepSize);
+	updateCloth((float3*)newPos, (float3*)oldPos,(float3*)normals , (float3*)devPtrImpact, (float3*)devPtrVelocity, deltaTime, stepSize);
 
 	// TODO: Unmap cudaNormal #############################################################################################################################################
+	cudaGraphicsUnmapResources(1, &cudaNormal, NULL);
 	// TODO: Unmap cudaPos (Hinweis: cudaGraphicsUnmapResources)	
 	cudaGraphicsUnmapResources(2, cudaPos, NULL);
 	//cudaGraphicsUnmapResources(1, &cudaPos[ping], NULL);

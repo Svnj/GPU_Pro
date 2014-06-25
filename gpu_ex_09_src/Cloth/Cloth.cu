@@ -5,7 +5,7 @@
 // Computes the impacts between two points that are connected by a constraint in order to satisfy the constraint a little better.
 __device__ float3 computeImpact(float3 me, float3 other, float stepsize, float h)
 {	
-	const float aimedDistance = 1.0 / (float)RESOLUTION_X;
+	const float aimedDistance = 1.0f / (float)RESOLUTION_X;
 	float3 dir = other-me;
 	float ldir = length(dir);
 	if (ldir==0) return dir;
@@ -126,8 +126,48 @@ __global__ void test( float3* newPos, float3* oldPos, float h)
 	newPos[index] = sphereCollision(newPos[index], h);
 }
 
+__global__ void computeNormals( float3* Pos, float3* norm)
+{
+	int index = 0;
+    // Index berechnen	
+	int X = threadIdx.x + blockIdx.x * blockDim.x;
+	int Y = threadIdx.y + blockIdx.y * blockDim.y;
+	index = Y + X * blockDim.y * gridDim.y;
+
+	int i = 0;
+	float3 verts[5];
+	if((X-1) < 0)			{ }else{i++;verts[i-1]=Pos[Y + (X-1) * blockDim.y * gridDim.y];}
+	if((Y-1) < 0)			{ }else{i++;verts[i-1]=Pos[(Y-1) + X * blockDim.y * gridDim.y];}
+	if((X+1) > RESOLUTION_X){ }else{i++;verts[i-1]=Pos[Y + (X+1) * blockDim.y * gridDim.y];}
+	if((Y+1) > RESOLUTION_Y){ }else{i++;verts[i-1]=Pos[(Y+1) + X * blockDim.y * gridDim.y];}
+	i++;verts[i-1] = Pos[index];
+	int avialableVerts = i;
+
+	float3 normal = make_float3(0.0f,0.0f,0.0f);
+
+//  Begin Cycle for Index in [0, Polygon.vertexNumber)
+	for(int vert = 0 ; vert < avialableVerts; vert++)
+	{
+//		Set Vertex Current to Polygon.verts[Index]
+		float3 current = verts[vert];
+//		Set Vertex Next    to Polygon.verts[(Index plus 1) mod Polygon.vertexNumber]
+		float3 next = verts[(vert+1)%avialableVerts];
+
+//		Set Normal.x to Sum of Normal.x and (multiply (Current.y minus Next.y) by (Current.z plus Next.z))
+		normal.x += (current.y-next.y)*(current.z+next.z);
+//		Set Normal.y to Sum of Normal.y and (multiply (Current.z minus Next.z) by (Current.x plus Next.x))
+		normal.y += (current.z-next.z)*(current.x+next.x);
+//		Set Normal.z to Sum of Normal.z and (multiply (Current.x minus Next.x) by (Current.y plus Next.y))
+		normal.z += (current.x-next.x)*(current.y+next.y);	
+//  End Cycle
+	}
+//  Returning Normalize(Normal)	
+	//norm[index] = make_float3(1.0f,1.0f,1.0f);
+	norm[index] = normalize(normal);
+}
+
 // -----------------------------------------------------------------------------------------------
-void updateCloth(	float3* newPos, float3* oldPos, float3* impacts, float3* velocity,					
+void updateCloth(	float3* newPos, float3* oldPos, float3* normals, float3* impacts, float3* velocity,					
 					float h, float stepsize)
 {
 	dim3 blocks(RESOLUTION_X, RESOLUTION_Y, 1);
@@ -157,7 +197,7 @@ void updateCloth(	float3* newPos, float3* oldPos, float3* impacts, float3* veloc
 
 	// -----------------------------
 	// TODO: Approximieren der Normalen ###################################################################################################################################
-	
+	computeNormals<<<blocks,1>>>(newPos,normals);
 	// -----------------------------
 	// TODO: Integrate velocity kernel ausfuehren
 	// Der kernel berechnet:  velocity = velocity * LINEAR_DAMPING + (impacts - (0,GRAVITY,0)) * h 	
