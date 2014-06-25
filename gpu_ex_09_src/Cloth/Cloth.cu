@@ -22,7 +22,7 @@ __device__ float3 sphereCollision(float3 p, float h)
 	
 	if(dist < (SPHERE_RADIUS + SKIN_WIDTH))
 	{
-		float3 s = p * (SPHERE_RADIUS + SKIN_WIDTH)*2;
+		float3 s = normalize(p) * (SPHERE_RADIUS + SKIN_WIDTH)*2;
 		impulse = s/h;
 	}
 	return impulse;
