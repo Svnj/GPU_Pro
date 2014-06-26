@@ -22,8 +22,8 @@ __device__ float3 sphereCollision(float3 p, float h)
 	
 	if(dist < (SPHERE_RADIUS + SKIN_WIDTH))
 	{
-		float3 s = normalize(p) * (SPHERE_RADIUS + SKIN_WIDTH)*2;
-		impulse = s/h;
+		float3 s = normalize(p) * ((SPHERE_RADIUS + SKIN_WIDTH)-dist);
+		impulse = s/(h*h);
 	}
 	return impulse;
 }
@@ -38,8 +38,9 @@ __global__ void computeImpacts(float3* oldPos, float3* impacts, float stepsize, 
 	int index = 0;
 	int X = threadIdx.x + blockIdx.x * blockDim.x;
 	int Y = threadIdx.y + blockIdx.y * blockDim.y;
-	int line = blockDim.y * gridDim.y;
-	index = Y + X * line;
+	int line = RESOLUTION_Y;
+	//index = Y + X * line;
+	index = Y + X * RESOLUTION_Y;
 	// neighbors (4-connected)
 	int indexN0 = (Y > 0)? Y-1 + X * line : -1;
 	int indexN1 = (X > 0)? Y + (X-1) * line : -1;
@@ -52,7 +53,6 @@ __global__ void computeImpacts(float3* oldPos, float3* impacts, float stepsize, 
 	// TODO: Mit jedem Nachbar besteht ein Constraint. Dementsprechend fuer jeden Nachbar 
 	//		 computeImpact aufrufen und die Ergebnisse aufsummieren.
 	float3 impact = sphereCollision(oldPos[index], h);
-	float3 zeroVec = make_float3(0,0,0);
 	// neighbors also mustn't enter the sphere
 	/*impact += (indexN0 == -1)? zeroVec : computeImpact(oldPos[index], sphereCollision(oldPos[indexN0], h), stepsize, h);
 	impact += (indexN1 == -1)? zeroVec : computeImpact(oldPos[index], sphereCollision(oldPos[indexN1], h), stepsize, h);
@@ -102,7 +102,7 @@ __global__ void integrateVelocity(	float3* impacts, float3* velocity, float h)
     // Index berechnen	
 	int X = threadIdx.x + blockIdx.x * blockDim.x;
 	int Y = threadIdx.y + blockIdx.y * blockDim.y;
-	index = Y + X * blockDim.y * gridDim.y;
+	index = Y + X * RESOLUTION_Y;
 
 	// TODO: Update velocity.
 	velocity[index] = velocity[index] * LINEAR_DAMPING + (impacts[index] - make_float3(0,GRAVITY,0)) * h;
@@ -130,7 +130,7 @@ __global__ void test( float3* newPos, float3* oldPos, float h)
 void updateCloth(	float3* newPos, float3* oldPos, float3* impacts, float3* velocity,					
 					float h, float stepsize)
 {
-	dim3 blocks(RESOLUTION_X, RESOLUTION_Y, 1);
+	dim3 blocks(RESOLUTION_X, RESOLUTION_Y-1, 1);
 
 	// -----------------------------
 	// Clear impacts
