@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 #include "cuda.h"
-#include "C:/Lib/Glut/Include/GL/glut.h"
+#include <GL/freeglut.h>
 
 #define N 512
 
@@ -24,7 +24,7 @@ GLfloat filteredPixels[N*N];
 float focusDepth = 0.5f;
 float sizeScale = 20.0f;
 
-float *devColorPixelsSrc, *devColorPixelsDst, *devDepthPixels;
+float *devColorPixelsSrc, *devColorPixelsDst, *devDepthPixels, *devSAT;
 
 void drawGround()
 {
@@ -111,18 +111,70 @@ void initGL()
 	glLoadIdentity();   
 }
 
+__global__ void transpose(float *oColor, float *iColor)
+{
+    // Index berechnen	
+	int X = threadIdx.x + blockIdx.x * blockDim.x;
+	int Y = threadIdx.y + blockIdx.y * blockDim.y;
+	int index = Y + X * blockDim.y * gridDim.y;
 
+    // Index berechnen	
+	int index_other = X + Y * blockDim.x * gridDim.x;
+
+	oColor[index] = iColor[index_other];
+}
+
+__device__ int clamp(int val, int minVal, int maxVal)
+{
+	val = max(val, minVal);
+	return min(val, maxVal);
+}
 
 __global__ void sat_filter(float *dstImage, float *sat, float *srcDepth, 
 					   float focusDepth, float sizeScale, int n)
 {
+	// Index berechnen	
+	int X = threadIdx.x + blockIdx.x * blockDim.x;
+	int Y = threadIdx.y + blockIdx.y * blockDim.y;
+	int index = Y + X * blockDim.y * gridDim.y;
+
 	// TODO: Filtergröße bestimmen
+	float depthDiff = srcDepth[index] - focusDepth;
+	depthDiff = (depthDiff >= 0) ? depthDiff : -depthDiff;
+	float filterSize = 1.0f + sizeScale * depthDiff;
 
 	// TODO: Anzahl der Pixel im Filterkern bestimmen	
+	float numPix = filterSize*filterSize;
 
 	// TODO: SAT-Werte für die Eckpunkte des Filterkerns bestimmen.
+
+	// B-----A
+	// |     |
+	// D-----C
+
+	int aX = clamp(X + filterSize/2,0,N);
+	int aY = clamp(Y + filterSize/2,0,N);
+	int indexA = aY + aX * blockDim.y * gridDim.y;
+	float A = sat[indexA];
+
+	int bX = clamp(X - filterSize/2,0,N);
+	int bY = clamp(Y + filterSize/2,0,N);
+	int indexB = bY + bX * blockDim.y * gridDim.y;
+	float B = sat[indexB];
+
+	int cX = clamp(X + filterSize/2,0,N);
+	int cY = clamp(Y - filterSize/2,0,N);
+	int indexC = cY + cX * blockDim.y * gridDim.y;
+	float C = sat[indexC];
+
+	int dX = clamp(X - filterSize/2,0,N);
+	int dY = clamp(Y - filterSize/2,0,N);
+	int indexD = dY + dX * blockDim.y * gridDim.y;
+	float D = sat[indexD];
 	
 	// TODO: Mittelwert berechnen.
+	float mittelwert = (A - B - C + D) / numPix;
+	dstImage[index] = mittelwert;
 }
 
 
@@ -154,7 +206,7 @@ __global__ void scan_naive(float *g_odata, float *g_idata, int n)
 
     __syncthreads();
 
-    g_odata[bid * N + thid] = temp[pout*n+thid];
+    g_odata[bid * N + thid] += temp[pout*n+thid];
 }
 
 
@@ -163,6 +215,7 @@ void initCUDA()
     cudaMalloc( (void**)&devColorPixelsSrc, N * N * sizeof(float) );
     cudaMalloc( (void**)&devColorPixelsDst, N * N * sizeof(float) );
     cudaMalloc( (void**)&devDepthPixels, N * N * sizeof(float) );
+	cudaMalloc( (void**)&devSAT, N * N * sizeof(float) );
 }
 
 void special(int key, int x, int y)
@@ -215,17 +268,27 @@ void display(void)
     cudaMemcpy( devColorPixelsSrc, colorPixels, N * N * sizeof(float), cudaMemcpyHostToDevice );
     cudaMemcpy( devDepthPixels, depthPixels, N * N * sizeof(float), cudaMemcpyHostToDevice );
 
+
+	dim3 blocks(N,N);
+
+	cudaMemset(devSAT, 0, N*N*sizeof(float));
+
 	// TODO: Scan    
+	scan_naive<<<N,N>>>(devSAT, devColorPixelsSrc, N);
 	// TODO: Transponieren    
+	transpose<<<blocks,1>>>(devColorPixelsDst, devColorPixelsSrc);
 	// TODO: Scan  
-	// TODO: Transponieren    
+	scan_naive<<<N,N>>>(devSAT, devColorPixelsDst, N);
+	// TODO: Transponieren 
+	//transpose<<<blocks,1>>>( devColorPixelsSrc, devColorPixelsDst);
 	// TODO: SAT-Filter anwenden	
+	sat_filter<<<blocks,1>>>(devColorPixelsDst, devSAT, devDepthPixels, focusDepth, sizeScale, N);
 
 	// Ergebnis in Host-Memory kopieren
 	cudaMemcpy( filteredPixels, devColorPixelsDst, N*N*4, cudaMemcpyDeviceToHost );
 
 	// TODO: Beim #if aus der 0 eine 1 machen, damit das gefilterte Bild angezeigt wird!
-#if 0
+#if 1
 	// Mittelwert-Bild rendern
 	glDrawPixels( N, N, GL_LUMINANCE, GL_FLOAT, filteredPixels );
 #else
