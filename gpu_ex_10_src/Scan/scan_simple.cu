@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include "cuda.h"
 #include <GL/freeglut.h>
@@ -126,54 +125,53 @@ __global__ void transpose(float *oColor, float *iColor)
 
 __device__ int clamp(int val, int minVal, int maxVal)
 {
-	val = max(val, minVal);
-	return min(val, maxVal);
+	return min(max(val, minVal), maxVal);
 }
 
 __global__ void sat_filter(float *dstImage, float *sat, float *srcDepth, 
 					   float focusDepth, float sizeScale, int n)
 {
 	// Index berechnen	
-	int X = threadIdx.x + blockIdx.x * blockDim.x;
-	int Y = threadIdx.y + blockIdx.y * blockDim.y;
-	int index = Y + X * blockDim.y * gridDim.y;
+	const int X = threadIdx.x + blockIdx.x * blockDim.x;
+	const int Y = threadIdx.y + blockIdx.y * blockDim.y;
+	const int index = Y + X * blockDim.y * gridDim.y;
 
-	// TODO: Filtergröße bestimmen
-	float depthDiff = srcDepth[index] - focusDepth;
-	depthDiff = (depthDiff >= 0) ? depthDiff : -depthDiff;
-	float filterSize = 1.0f + sizeScale * depthDiff;
+	// TODO: Filtergroesse bestimmen
+	//float depthDiff = srcDepth[index] - focusDepth;
+	//depthDiff = (depthDiff >= 0) ? depthDiff : -depthDiff;
+	float filterSize = 1.0f + sizeScale * abs(srcDepth[index]-focusDepth);
 
-	// TODO: Anzahl der Pixel im Filterkern bestimmen	
-	float numPix = filterSize*filterSize;
+	
 
-	// TODO: SAT-Werte für die Eckpunkte des Filterkerns bestimmen.
+	// TODO: SAT-Werte fuer die Eckpunkte des Filterkerns bestimmen.
 
 	// B-----A
 	// |     |
 	// D-----C
 
-	int aX = clamp(X + filterSize/2,0,N);
-	int aY = clamp(Y + filterSize/2,0,N);
-	int indexA = aY + aX * blockDim.y * gridDim.y;
-	float A = sat[indexA];
+	int xLeft = clamp(X - filterSize/2,0,N-1);
+	int xRight = clamp(X + filterSize/2,0,N-1);
 
-	int bX = clamp(X - filterSize/2,0,N);
-	int bY = clamp(Y + filterSize/2,0,N);
-	int indexB = bY + bX * blockDim.y * gridDim.y;
-	float B = sat[indexB];
+	int yLow = clamp(Y - filterSize/2,0,N-1);
+	int yHigh = clamp(Y + filterSize/2,0,N-1);
 
-	int cX = clamp(X + filterSize/2,0,N);
-	int cY = clamp(Y - filterSize/2,0,N);
-	int indexC = cY + cX * blockDim.y * gridDim.y;
-	float C = sat[indexC];
+	// TODO: Anzahl der Pixel im Filterkern bestimmen	
+	int numPix = (xRight-xLeft)*(yHigh-yLow);
 
-	int dX = clamp(X - filterSize/2,0,N);
-	int dY = clamp(Y - filterSize/2,0,N);
-	int indexD = dY + dX * blockDim.y * gridDim.y;
-	float D = sat[indexD];
-	
-	// TODO: Mittelwert berechnen.
-	float mittelwert = (A - B - C + D) / numPix;
+	int i = yHigh + xRight * blockDim.y * gridDim.y;
+	float A = sat[i];
+
+	i = yHigh + xLeft * blockDim.y * gridDim.y;
+	float B = sat[i];
+
+	i = yLow + xRight * blockDim.y * gridDim.y;
+	float C = sat[i];
+
+	i = yLow + xLeft * blockDim.y * gridDim.y;
+	float D = sat[i];
+
+	//// TODO: Mittelwert berechnen.
+	float mittelwert = (A - B - C + D) / ((float)numPix);
 	dstImage[index] = mittelwert;
 }
 
@@ -206,7 +204,7 @@ __global__ void scan_naive(float *g_odata, float *g_idata, int n)
 
     __syncthreads();
 
-    g_odata[bid * N + thid] += temp[pout*n+thid];
+    g_odata[bid * N + thid] = temp[pout*n+thid];
 }
 
 
@@ -274,13 +272,13 @@ void display(void)
 	cudaMemset(devSAT, 0, N*N*sizeof(float));
 
 	// TODO: Scan    
-	scan_naive<<<N,N>>>(devSAT, devColorPixelsSrc, N);
+	scan_naive<<<N,N>>>(devColorPixelsDst, devColorPixelsSrc, N);
 	// TODO: Transponieren    
-	transpose<<<blocks,1>>>(devColorPixelsDst, devColorPixelsSrc);
+	transpose<<<blocks,1>>>(devSAT, devColorPixelsDst);
 	// TODO: Scan  
-	scan_naive<<<N,N>>>(devSAT, devColorPixelsDst, N);
+	scan_naive<<<N,N>>>(devColorPixelsDst, devSAT, N);
 	// TODO: Transponieren 
-	//transpose<<<blocks,1>>>( devColorPixelsSrc, devColorPixelsDst);
+	transpose<<<blocks,1>>>( devSAT, devColorPixelsDst);
 	// TODO: SAT-Filter anwenden	
 	sat_filter<<<blocks,1>>>(devColorPixelsDst, devSAT, devDepthPixels, focusDepth, sizeScale, N);
 
@@ -320,4 +318,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
